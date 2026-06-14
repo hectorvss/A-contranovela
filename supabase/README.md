@@ -11,6 +11,8 @@ This folder prepares the project for moving all editorial content out of the sta
 - `migrations/002_secure_manager_access.sql`
   - Restricts all editorial writes to explicitly approved manager users.
   - Replaces broad authenticated write policies with `public.manager_users` checks.
+- `migrations/003_repair_text_encoding.sql`
+  - Repairs mojibake text such as `MAÃ‘ANA`, `allÃ­`, broken arrows and Spanish accents in seeded/editorial data.
 - `seed/reviews.json`
   - JSON export generated from the current local seed content.
   - Useful for audits, scripts or import tooling.
@@ -44,9 +46,10 @@ Both buckets accept `image/png` and `image/jpeg`.
 1. Open the Supabase SQL editor.
 2. Paste and run `migrations/001_initial_schema_and_seed.sql`.
 3. Paste and run `migrations/002_secure_manager_access.sql`.
-4. Create the manager user in Supabase Auth.
-5. Insert the manager user into `public.manager_users`.
-6. Fill `supabase-config.js`.
+4. Paste and run `migrations/003_repair_text_encoding.sql` if any accent appears broken after seed/import.
+5. Create the manager user in Supabase Auth.
+6. Insert the manager user into `public.manager_users`.
+7. Fill `supabase-config.js`.
 3. Confirm the resulting counts:
 
 ```sql

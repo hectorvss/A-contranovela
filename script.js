@@ -12,15 +12,15 @@ const coverFilterPresets = [
   { label: "Nocturno", value: "grayscale(1) contrast(1.25) brightness(.78)" },
   { label: "Quemado", value: "grayscale(1) contrast(1.55) brightness(1.18)" },
   { label: "Plata", value: "grayscale(1) contrast(.82) brightness(1.22)" },
-  { label: "CarbÃ³n", value: "grayscale(1) contrast(1.8) brightness(.82)" },
+  { label: "Carbón", value: "grayscale(1) contrast(1.8) brightness(.82)" },
   { label: "Mate", value: "grayscale(1) saturate(.15) contrast(.95)" },
   { label: "Niebla", value: "grayscale(1) contrast(.72) brightness(1.18)" },
   { label: "Xerox", value: "grayscale(1) contrast(2) brightness(1.05)" },
   { label: "Cine", value: "grayscale(1) contrast(1.2) brightness(.9)" },
   { label: "Editorial", value: "grayscale(1) contrast(1.12) brightness(1.02)" },
   { label: "Papel", value: "grayscale(.9) sepia(.12) contrast(1.05)" },
-  { label: "FrÃ­o", value: "grayscale(.85) saturate(.35) contrast(1.08)" },
-  { label: "CÃ¡lido", value: "grayscale(.75) sepia(.28) contrast(1.03)" },
+  { label: "Frío", value: "grayscale(.85) saturate(.35) contrast(1.08)" },
+  { label: "Cálido", value: "grayscale(.75) sepia(.28) contrast(1.03)" },
   { label: "Color bajo", value: "saturate(.45) contrast(1.05)" },
   { label: "Original", value: "none" },
 ];
@@ -29,7 +29,7 @@ const categories = [
   { id: "textos", label: "TEXTOS", mode: "cards" },
   { id: "flash", label: "FLASH", mode: "cards" },
   { id: "escala", label: "ESCALA", mode: "scale" },
-  { id: "hoy-manana", label: "HOY Y MAÃ‘ANA", mode: "today" },
+  { id: "hoy-manana", label: "HOY Y MAÑANA", mode: "today" },
   { id: "no", label: "NO", mode: "no" },
 ];
 
@@ -38,16 +38,16 @@ const categoryLabels = {
     textos: "TEXTOS",
     flash: "FLASH",
     escala: "ESCALA",
-    "hoy-manana": "HOY Y MAÃ‘ANA",
+    "hoy-manana": "HOY Y MAÑANA",
     no: "NO",
     yo: "YO",
     today: "HOY",
-    tomorrow: "MAÃ‘ANA",
-    previous: "â† anterior",
+    tomorrow: "MAÑANA",
+    previous: "← anterior",
     index: "indice",
-    next: "siguiente â†’",
+    next: "siguiente →",
     languageButton: "EN",
-    socialThere: "allÃ­",
+    socialThere: "allí",
   },
   en: {
     textos: "TEXTS",
@@ -58,19 +58,64 @@ const categoryLabels = {
     yo: "ME",
     today: "TODAY",
     tomorrow: "TOMORROW",
-    previous: "â† previous",
+    previous: "← previous",
     index: "index",
-    next: "next â†’",
+    next: "next →",
     languageButton: "ES",
     socialThere: "there",
   },
 };
 
+const mojibakeMap = {
+  "\u00c3\u00a1": "á",
+  "\u00c3\u00a9": "é",
+  "\u00c3\u00ad": "í",
+  "\u00c3\u00b3": "ó",
+  "\u00c3\u00ba": "ú",
+  "\u00c3\u0081": "Á",
+  "\u00c3\u0089": "É",
+  "\u00c3\u008d": "Í",
+  "\u00c3\u0093": "Ó",
+  "\u00c3\u009a": "Ú",
+  "\u00c3\u00b1": "ñ",
+  "\u00c3\u0091": "Ñ",
+  "\u00c3\u2018": "Ñ",
+  "\u00c2\u00bf": "¿",
+  "\u00c2\u00a1": "¡",
+  "\u00c2\u00b7": "·",
+  "\u00c2\u00ba": "º",
+  "\u00c2\u00aa": "ª",
+  "\u00e2\u0086\u0090": "←",
+  "\u00e2\u0086\u0091": "↑",
+  "\u00e2\u0086\u0092": "→",
+  "\u00e2\u0086\u0093": "↓",
+  "\u00e2\u0086\u0095": "↕",
+  "\u00e2\u0080\u0093": "–",
+  "\u00e2\u0080\u0094": "—",
+  "\u00e2\u0080\u009c": "“",
+  "\u00e2\u0080\u009d": "”",
+  "\u00e2\u0080\u0098": "‘",
+  "\u00e2\u0080\u0099": "’",
+};
+
+function repairTextEncoding(value) {
+  if (typeof value !== "string") return value;
+  return Object.entries(mojibakeMap).reduce((text, [broken, fixed]) => text.replaceAll(broken, fixed), value);
+}
+
+function repairContentEncoding(value) {
+  if (Array.isArray(value)) return value.map(repairContentEncoding);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, repairContentEncoding(item)]));
+  }
+  return repairTextEncoding(value);
+}
+
 const defaultBioContent = {
   es: {
     lead: "Este proyecto nace de una mania privada: leer como quien escucha una habitacion vacia. No busca ordenar el canon, sino registrar una temperatura. Lo que importa no es solo si un libro funciona, sino que tipo de ruido deja en la cabeza.",
     one: "El manager de <strong>a contranovela</strong> escribe desde una idea sencilla: la critica no deberia sonar como una sentencia, sino como una forma de atencion. Cada texto intenta mirar el libro de cerca, sin convertirlo en mercancia de recomendacion rapida ni en monumento academico.",
-    two: "Aqui conviven reseÃ±as largas, apuntes veloces, escalas semanales, entusiasmos provisionales y negativas razonadas. Hay libros que se aman, libros que se discuten y libros que se dejan caer con cuidado sobre la mesa para escuchar como suenan.",
+    two: "Aqui conviven reseñas largas, apuntes veloces, escalas semanales, entusiasmos provisionales y negativas razonadas. Hay libros que se aman, libros que se discuten y libros que se dejan caer con cuidado sobre la mesa para escuchar como suenan.",
     quote: "Leer no para tener razon, sino para afinar la desconfianza.",
   },
   en: {
@@ -100,7 +145,7 @@ const titleTranslations = {
   "El cielo protector": "The Sheltering Sky",
   Nada: "Nada",
   "Suite francesa": "Suite Francaise",
-  "Â¿SueÃ±an los androides con ovejas electricas?": "Do Androids Dream of Electric Sheep?",
+  "¿Sueñan los androides con ovejas electricas?": "Do Androids Dream of Electric Sheep?",
   Vertigo: "Vertigo",
   "La insoportable levedad del ser": "The Unbearable Lightness of Being",
   Cosmopolis: "Cosmopolis",
@@ -118,7 +163,7 @@ const seedReviews = [
   review("textos", "Peter Handke", "Ensayo sobre el cansancio", "Un libro que afirma el derecho a la inutilidad y al silencio. Handke convierte el cansancio en una forma de atencion: no es una renuncia, es una resistencia intima frente al ruido del mundo.", "8.2", "Alianza", "1990", "Eustaquio Barjau", "72", "1005", "#efe7d8"),
   review("textos", "W. G. Sebald", "Austerlitz", "Memoria, arquitectura, perdida. Sebald construye una narracion donde el pasado nunca es pasado del todo: deambula y nos arrastra con el por los pasillos de la historia.", "9.1", "Anagrama", "2001", "Miguel Saenz", "364", "1035", "#e8e2d3"),
   review("textos", "Herve Guibert", "Al amigo que no me salvo la vida", "Guibert escribe como quien se expone. Carta, diario y elegia. La amistad aparece como el unico lugar posible desde el que mirar la propia desaparicion.", "8.0", "Tusquets", "1991", "M. Antolin Rato", "288", "1011", "#e4df73"),
-  review("textos", "Wislawa Szymborska", "Fin y principio", "Poesia de lo cotidiano y lo abismal. Szymborska encuentra la grieta luminosa en las cosas mas pequeÃ±as: ironia, precision y una ternura sin concesiones.", "8.7", "Nordica", "1993", "Gerardo Beltran", "128", "1040", "#d9e0e1"),
+  review("textos", "Wislawa Szymborska", "Fin y principio", "Poesia de lo cotidiano y lo abismal. Szymborska encuentra la grieta luminosa en las cosas mas pequeñas: ironia, precision y una ternura sin concesiones.", "8.7", "Nordica", "1993", "Gerardo Beltran", "128", "1040", "#d9e0e1"),
   review("flash", "Clarice Lispector", "La pasion segun G.H.", "Una caida al cuarto de servicio que lo desordena todo. Breve y devastadora: una novela donde la identidad se queda sin muebles y el lenguaje trabaja contra si mismo.", "8.5", "Siruela", "1964", "Cristina Peri Rossi", "176", "1076", "#efe5d0"),
   review("flash", "Javier Marias", "Corazon tan blanco", "El espionaje como excusa, la duda como centro. Una novela sobre mirar y no entender, sobre escuchar demasiado tarde aquello que ya habia cambiado la vida.", "7.6", "Alfaguara", "1992", "-", "304", "1050", "#efd7d7"),
   review("flash", "Thomas Bernhard", "El sobrino de Wittgenstein", "Monologo, obsesion, musica. Bernhard en estado puro: la furia como instrumento de precision y el humor como forma de lucidez amarga.", "8.1", "Anagrama", "1982", "Miguel Saenz", "144", "1027", "#eee7d9"),
@@ -128,14 +173,14 @@ const seedReviews = [
   review("escala", "Susan Sontag", "Sobre la fotografia", "La camara como poder, archivo y coartada. Sontag no escribe sobre tecnicas: escribe sobre el deseo de poseer el mundo por medio de sus restos.", "9.2", "Debolsillo", "1977", "Carlos Gardini", "288", "1060", "#111"),
   review("escala", "Han Kang", "La vegetariana", "Un cuerpo decide salir del pacto. La novela convierte una renuncia privada en una violencia publica: familia, deseo, obediencia y terror domestico.", "9.0", "Rata", "2007", "Sunme Yoon", "240", "1067", "#efe5dd"),
   review("escala", "Tara Westover", "Una educacion", "Una memoria sobre abandonar un idioma familiar para poder nombrarse. La educacion aparece como fuga, herida y reconstruccion.", "8.8", "Lumen", "2018", "Antonia Martin", "464", "1084", "#efe2c9"),
-  review("escala", "Roberto BolaÃ±o", "Los detectives salvajes", "Una expedicion, una pandilla, una ruina. BolaÃ±o escribe la juventud como persecucion y la literatura como un mapa que siempre llega tarde.", "8.5", "Anagrama", "1998", "-", "624", "1083", "#f0d4ce"),
+  review("escala", "Roberto Bolaño", "Los detectives salvajes", "Una expedicion, una pandilla, una ruina. Bolaño escribe la juventud como persecucion y la literatura como un mapa que siempre llega tarde.", "8.5", "Anagrama", "1998", "-", "624", "1083", "#f0d4ce"),
   review("escala", "Virginia Woolf", "Al faro", "La conciencia como marea. Woolf hace visible lo que normalmente pasa entre frases: demora, deseo, memoria y la luz que cambia sin pedir permiso.", "8.3", "Alianza", "1927", "Jose Luis Lopez", "272", "1039", "#ecd873"),
   review("escala", "Bernhard Schlink", "El lector", "Culpa, deseo y memoria alemana. Una novela breve que abre una pregunta incomoda: que hacemos con aquello que comprendemos demasiado tarde.", "8.1", "Anagrama", "1995", "Joan Parra", "208", "1048", "#dedede"),
   review("escala", "Paul Bowles", "El cielo protector", "Viajar hasta el punto donde el viaje deja de protegernos. Bowles narra la extranjeria como fiebre lenta y como perdida de forma.", "7.9", "Seix Barral", "1949", "M. Antolin Rato", "336", "1056", "#d7e6e9"),
   review("escala", "Carmen Laforet", "Nada", "Una casa que devora y una voz que resiste. Laforet hizo del encierro de posguerra una novela de atmosfera cortante.", "7.6", "Destino", "1945", "-", "296", "1068", "#eee8dc"),
   review("escala", "Irene Nemirovsky", "Suite francesa", "Una novela escrita en el borde de su propia catastrofe. El detalle social convive con una conciencia tragica del tiempo que se acaba.", "7.4", "Salamandra", "2004", "Jose Antonio Soriano", "480", "1024", "#eadfc9"),
-  review("hoy-manana", "Philip K. Dick", "Â¿SueÃ±an los androides con ovejas electricas?", "El futuro como pregunta moral. Dick no pregunta si las maquinas sienten, sino que queda de nosotros cuando la compasion se convierte en un articulo escaso.", "8.6", "Minotauro", "1968", "Cesar Terron", "256", "1080", "#f2eadc", "hoy"),
-  review("hoy-manana", "W. G. Sebald", "Vertigo", "Cuatro desplazamientos, una misma niebla. Sebald escribe el viaje como un estado de sospecha: cada lugar parece recordar algo que el narrador todavia no sabe.", "8.9", "Anagrama", "1990", "Miguel Saenz", "248", "1081", "#f0e4cf", "maÃ±ana"),
+  review("hoy-manana", "Philip K. Dick", "¿Sueñan los androides con ovejas electricas?", "El futuro como pregunta moral. Dick no pregunta si las maquinas sienten, sino que queda de nosotros cuando la compasion se convierte en un articulo escaso.", "8.6", "Minotauro", "1968", "Cesar Terron", "256", "1080", "#f2eadc", "hoy"),
+  review("hoy-manana", "W. G. Sebald", "Vertigo", "Cuatro desplazamientos, una misma niebla. Sebald escribe el viaje como un estado de sospecha: cada lugar parece recordar algo que el narrador todavia no sabe.", "8.9", "Anagrama", "1990", "Miguel Saenz", "248", "1081", "#f0e4cf", "mañana"),
   review("no", "Milan Kundera", "La insoportable levedad del ser", "Una novela brillante en superficie, pero demasiado enamorada de su propio mecanismo. La idea manda tanto que los personajes quedan reducidos a emblemas.", "2.8", "Tusquets", "1984", "Fernando de Valenzuela", "320", "1082", "#ead0d0"),
   review("no", "Don DeLillo", "Cosmopolis", "El concepto es potente, la ejecucion demasiado hermetica. La ciudad vibra, pero la novela parece mirar su propio reflejo mas que a sus criaturas.", "3.1", "Seix Barral", "2003", "Gian Castelli", "224", "1076", "#1f1f1f"),
   review("no", "Karl Ove Knausgard", "Mi lucha 1", "La precision autobiografica no siempre alcanza forma literaria. Hay intensidad, pero tambien una insistencia que confunde acumulacion con revelacion.", "2.5", "Anagrama", "2009", "Kirsti Baggethun", "496", "1016", "#eee8df"),
@@ -145,7 +190,7 @@ const seedReviews = [
   review("no", "Elena Ferrante", "La amiga estupenda", "Hay vida, barrio y conflicto, pero la intensidad queda demasiado programada. La emocion llega subrayada antes de tiempo.", "2.6", "Lumen", "2011", "Celia Filipetto", "392", "1059", "#eee4d4"),
   review("no", "Marc Levy", "Si pudiera volver a verte", "Romanticismo de trazo blando y arquitectura previsible. La novela nunca incomoda a sus propias certezas.", "2.7", "Roca", "2001", "-", "288", "1060", "#ece8dc"),
   review("no", "Javier Cercas", "Soldados de Salamina", "Interesante como dispositivo, menos convincente como resultado. La investigacion pesa mas que la respiracion narrativa.", "2.9", "Tusquets", "2001", "-", "224", "1067", "#eee9df"),
-  review("no", "E. L. James", "Cincuenta sombras de Grey", "El escandalo fue mas fuerte que la prosa. Como artefacto cultural importa; como novela, apenas sostiene sus propias escenas.", "2.3", "Grijalbo", "2011", "Pilar de la PeÃ±a", "544", "1084", "#191919"),
+  review("no", "E. L. James", "Cincuenta sombras de Grey", "El escandalo fue mas fuerte que la prosa. Como artefacto cultural importa; como novela, apenas sostiene sus propias escenas.", "2.3", "Grijalbo", "2011", "Pilar de la Peña", "544", "1084", "#191919"),
 ];
 
 function review(section, author, title, summary, score, publisher, year, translator, pages, imageId, tone, slot = "") {
@@ -176,7 +221,7 @@ function buildBody(title, author, summary) {
     `Tambien importa la manera en que el libro entiende al lector. No lo trata como consumidor de argumento, sino como alguien capaz de quedarse dentro de una escena cuando la escena ya ha terminado. Esa confianza cambia la lectura: obliga a mirar los detalles laterales, los cambios de tono, las repeticiones y las omisiones que al principio parecian menores.`,
     `En terminos de estructura, la obra funciona por acumulacion discreta. No depende de un unico golpe ni de una frase memorable convertida en cartel; su potencia aparece cuando las capas empiezan a tocarse. Entonces se comprende que la forma no era un recipiente, sino el verdadero asunto: el modo en que una experiencia encuentra o pierde su lenguaje.`,
     `La pregunta que deja ${title} no es si nos ha gustado, sino que clase de atencion nos ha exigido. Esa diferencia es importante. Hay libros que piden velocidad y libros que piden demora; este pertenece a los segundos, incluso cuando parece breve, directo o transparente. Su valor esta en esa resistencia a ser liquidado demasiado pronto.`,
-    `Por eso la lectura deja una impresion doble. Por un lado, la precision de una pieza cerrada; por otro, la sensacion de que algo sigue abierto fuera del libro. Esa es su fuerza: no imponer una conclusion, sino dejar una vibracion moral que acompaÃ±a mucho despues de cerrar la ultima pagina.`,
+    `Por eso la lectura deja una impresion doble. Por un lado, la precision de una pieza cerrada; por otro, la sensacion de que algo sigue abierto fuera del libro. Esa es su fuerza: no imponer una conclusion, sino dejar una vibracion moral que acompaña mucho despues de cerrar la ultima pagina.`,
   ];
 }
 
@@ -286,9 +331,9 @@ async function initSupabaseData() {
     if (reviewsError) throw reviewsError;
     if (pagesError) throw pagesError;
     reviews = remoteReviews.map(fromSupabaseReview);
-    editorialPages = Object.fromEntries((pages || []).map((page) => [page.id, page]));
+    editorialPages = Object.fromEntries((pages || []).map((page) => [page.id, repairContentEncoding(page)]));
     const yo = editorialPages.yo?.content;
-    if (yo) saveBioContent(yo);
+    if (yo) saveBioContent(repairContentEncoding(yo));
     persist();
     supabaseStatus = "online";
     rerenderCurrentView();
@@ -327,7 +372,7 @@ async function ensureManagerSession(password) {
 }
 
 function fromSupabaseReview(row) {
-  return {
+  return repairContentEncoding({
     id: row.id,
     section: row.section,
     author: row.author,
@@ -345,7 +390,7 @@ function fromSupabaseReview(row) {
     slot: row.slot || "",
     body: Array.isArray(row.body) ? row.body : [],
     images: Array.isArray(row.images) ? row.images : [],
-  };
+  });
 }
 
 function toSupabaseReview(review, sortOrder) {
@@ -436,7 +481,7 @@ function currentBio() {
 }
 
 function t(key) {
-  return categoryLabels[currentLanguage][key] || categoryLabels.es[key] || key;
+  return repairTextEncoding(categoryLabels[currentLanguage][key] || categoryLabels.es[key] || key);
 }
 
 function syncStatusLabel() {
@@ -525,11 +570,11 @@ function requestManagerAccess() {
   gate.setAttribute("aria-modal", "true");
   gate.innerHTML = `
     <div class="manager-gate-card">
-      <button class="manager-gate-close" type="button" aria-label="Cerrar">Ã—</button>
+      <button class="manager-gate-close" type="button" aria-label="Cerrar">×</button>
       <span>PANEL EDITORIAL</span>
       <h2>ACCESO</h2>
-      <p>Introduce la contraseÃ±a del manager para editar, crear o eliminar contenido.</p>
-      <input type="password" data-manager-password placeholder="CONTRASEÃ‘A" autocomplete="current-password" />
+      <p>Introduce la contraseña del manager para editar, crear o eliminar contenido.</p>
+      <input type="password" data-manager-password placeholder="CONTRASEÑA" autocomplete="current-password" />
       <button class="submit-button" type="button" data-manager-unlock>ENTRAR</button>
       <small data-manager-error></small>
     </div>
@@ -555,7 +600,7 @@ function requestManagerAccess() {
       }
       return;
     }
-    error.textContent = "ContraseÃ±a incorrecta.";
+    error.textContent = "Contraseña incorrecta.";
     input.value = "";
     input.focus();
   };
@@ -669,7 +714,7 @@ function renderRankRow(item, index) {
 
 function renderToday() {
   const today = displayReview(reviews.find((item) => item.section === "hoy-manana" && item.slot === "hoy"));
-  const tomorrow = displayReview(reviews.find((item) => item.section === "hoy-manana" && item.slot === "maÃ±ana"));
+  const tomorrow = displayReview(reviews.find((item) => item.section === "hoy-manana" && item.slot === "mañana"));
   els.postList.innerHTML = `
     <section class="category-page today-page">
       ${renderFeature(t("today"), today)}
@@ -716,14 +761,14 @@ function renderDetail(reviewId) {
       </header>
       <dl class="book-meta">
         <div><dt>EDITORIAL:</dt><dd>${item.publisher}</dd></div>
-        <div><dt>AÃ‘O:</dt><dd>${item.year}</dd></div>
+        <div><dt>AÑO:</dt><dd>${item.year}</dd></div>
         <div><dt>TRADUCCION:</dt><dd>${item.translator}</dd></div>
         <div><dt>PAGINAS:</dt><dd>${item.pages}</dd></div>
       </dl>
       <div class="detail-body">
         ${renderArticleBlocks(item)}
       </div>
-      <nav class="detail-nav" aria-label="Navegacion entre reseÃ±as">
+      <nav class="detail-nav" aria-label="Navegacion entre reseñas">
         <button type="button" data-nav="prev">${t("previous")}</button>
         <button type="button" data-nav="index">${t("index")}</button>
         <button type="button" data-nav="next">${t("next")}</button>
@@ -750,7 +795,7 @@ function renderArticleBlocks(item) {
     .map((paragraph, index) => {
       const image = images[index - 1];
       const media = image && index > 0 && index % 2 === 0 ? `<figure class="inline-photo"><img src="${image}" alt="" loading="lazy" /></figure>` : "";
-      return `${media}<p>${paragraph}</p>`;
+      return `${media}<p>${repairTextEncoding(paragraph)}</p>`;
     })
     .join("");
 }
@@ -785,15 +830,15 @@ function filterManagerLibrary(event) {
 function renderTextBlock(value = "") {
   return `
     <section class="content-block manager-block" data-text-block>
-      <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Arrastrar bloque">â†•</button>
+      <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Arrastrar bloque">↕</button>
       <div class="block-handle">
         <strong>TEXTO</strong>
-        <span>arrastra la pestaÃ±a o usa las flechas</span>
+        <span>arrastra la pestaña o usa las flechas</span>
       </div>
-      <textarea name="bodyBlock" rows="5" placeholder="Escribe un bloque de la reseÃ±a">${value}</textarea>
+      <textarea name="bodyBlock" rows="5" placeholder="Escribe un bloque de la reseña">${value}</textarea>
       <div class="block-actions">
-        <button type="button" data-move-up>â†‘</button>
-        <button type="button" data-move-down>â†“</button>
+        <button type="button" data-move-up>↑</button>
+        <button type="button" data-move-down>↓</button>
         <button type="button" data-remove-block>eliminar</button>
       </div>
     </section>
@@ -803,7 +848,7 @@ function renderTextBlock(value = "") {
 function renderImageBlock(value = "") {
   return `
     <section class="image-block manager-block" data-image-block>
-      <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Arrastrar foto">â†•</button>
+      <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Arrastrar foto">↕</button>
       <img src="${value}" alt="" loading="lazy" />
       <div class="image-block-fields">
         <div class="block-handle">
@@ -813,8 +858,8 @@ function renderImageBlock(value = "") {
         <input name="articleImage" value="${value}" placeholder="URL de imagen" />
       </div>
       <div class="block-actions">
-        <button type="button" data-move-up>â†‘</button>
-        <button type="button" data-move-down>â†“</button>
+        <button type="button" data-move-up>↑</button>
+        <button type="button" data-move-down>↓</button>
         <button type="button" data-remove-block>eliminar</button>
       </div>
     </section>
@@ -980,7 +1025,7 @@ function renderManager(screen = "dashboard", options = {}) {
         <div>
           <span class="manager-kicker">PANEL EDITORIAL</span>
           <h1>MANAGER</h1>
-          <p>Elige una seccion, administra documentos y edita cada reseÃ±a por bloques.</p>
+          <p>Elige una seccion, administra documentos y edita cada reseña por bloques.</p>
           <small class="manager-sync-state">${syncStatusLabel()}</small>
         </div>
         <div class="manager-header-actions">
@@ -1022,7 +1067,7 @@ function renderManagerDashboard() {
     <section class="manager-dashboard">
       <div class="manager-overview">
         <strong>${total}</strong>
-        <span>reseÃ±as publicadas</span>
+        <span>reseñas publicadas</span>
       </div>
       <div class="manager-category-grid">
         ${categories.map(renderManagerCategoryCard).join("")}
@@ -1057,7 +1102,7 @@ function renderManagerCategoryCard(category) {
     <button class="manager-category-card" type="button" data-manager-category="${category.id}">
       <span>${t(category.id)}</span>
       <strong>${String(items.length).padStart(2, "0")}</strong>
-      <small>${latest ? `${latest.title} Â· ${latest.author}` : "sin documentos"}</small>
+      <small>${latest ? `${latest.title} · ${latest.author}` : "sin documentos"}</small>
     </button>
   `;
 }
@@ -1103,19 +1148,19 @@ function renderManagerCategory(categoryId) {
   screen.innerHTML = `
     <section class="manager-documents">
       <div class="manager-subheader">
-        <button class="text-button" type="button" data-manager-back>â† secciones</button>
+        <button class="text-button" type="button" data-manager-back>← secciones</button>
         <div>
           <span>SECCION</span>
           <h2>${t(category.id)}</h2>
         </div>
-        <button class="submit-button" type="button" data-manager-create>CREAR RESEÃ‘A</button>
+        <button class="submit-button" type="button" data-manager-create>CREAR RESEÑA</button>
       </div>
       <div class="manager-document-toolbar">
         <input type="search" placeholder="Buscar en ${t(category.id)}" data-search />
         <span>${items.length} documentos</span>
       </div>
       <div class="manager-document-grid">
-        ${items.map(renderManagerDocumentCard).join("") || `<p class="manager-empty">Todavia no hay reseÃ±as en esta seccion.</p>`}
+        ${items.map(renderManagerDocumentCard).join("") || `<p class="manager-empty">Todavia no hay reseñas en esta seccion.</p>`}
       </div>
     </section>
   `;
@@ -1144,7 +1189,7 @@ function renderManagerDocumentCard(item) {
       <div class="manager-document-copy">
         <strong>${item.title}</strong>
         <span>${item.author}</span>
-        <small>${categoryLabel(item.section)} Â· ${item.score} Â· ${item.body?.length || 0} bloques</small>
+        <small>${categoryLabel(item.section)} · ${item.score} · ${item.body?.length || 0} bloques</small>
       </div>
       <div class="manager-card-actions">
         <button type="button" data-edit="${item.id}">editar</button>
@@ -1180,9 +1225,9 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
     <input type="hidden" name="id" value="${item.id || ""}" />
     <section class="manager-editor-shell">
       <div class="manager-subheader">
-        <button class="text-button" type="button" data-manager-back>â† documentos</button>
+        <button class="text-button" type="button" data-manager-back>← documentos</button>
         <div>
-          <span>${item.id ? "EDITANDO" : "NUEVA RESEÃ‘A"}</span>
+          <span>${item.id ? "EDITANDO" : "NUEVA RESEÑA"}</span>
           <h2>${value.title || "Sin titulo"}</h2>
         </div>
         <div class="manager-subheader-actions">
@@ -1192,7 +1237,7 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
       </div>
       <section class="manager-compose">
         <div class="compose-main">
-          <input class="compose-title" name="title" value="${escapeAttr(value.title)}" required placeholder="Titulo de la reseÃ±a" />
+          <input class="compose-title" name="title" value="${escapeAttr(value.title)}" required placeholder="Titulo de la reseña" />
           <input class="compose-author" name="author" value="${escapeAttr(value.author)}" required placeholder="Autor / autora" />
           <textarea class="compose-summary" name="summary" rows="3" placeholder="Entradilla para la lista">${value.summary}</textarea>
           <div class="compose-toolbar">
@@ -1209,10 +1254,10 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
         </div>
         <aside class="compose-side">
           <div class="cover-preview-large">${renderCover({ ...value, publisher: value.publisher || "editorial" }, "small")}</div>
-          <label>seccion<select name="section" data-section-select>${categories.map((category) => `<option value="${category.id}" ${category.id === value.section ? "selected" : ""}>${t(category.id)}</option>`).join("")}</select><small class="field-note">Puedes mover esta reseÃ±a a cualquier categoria antes de guardar.</small></label>
+          <label>seccion<select name="section" data-section-select>${categories.map((category) => `<option value="${category.id}" ${category.id === value.section ? "selected" : ""}>${t(category.id)}</option>`).join("")}</select><small class="field-note">Puedes mover esta reseña a cualquier categoria antes de guardar.</small></label>
           <div class="two-cols">
             <label>nota<input name="score" value="${value.score}" /></label>
-            <label>aÃ±o<input name="year" value="${value.year}" /></label>
+            <label>año<input name="year" value="${value.year}" /></label>
           </div>
           <label>editorial<input name="publisher" value="${escapeAttr(value.publisher)}" /></label>
           <label>traduccion<input name="translator" value="${escapeAttr(value.translator)}" /></label>
@@ -1227,10 +1272,10 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
               ${coverFilterPresets.map((filter) => `<button class="${filter.value === value.coverFilter ? "is-active" : ""}" type="button" data-cover-filter="${escapeAttr(filter.value)}">${filter.label}</button>`).join("")}
             </div>
           </div>
-          <label>hoy / maÃ±ana<select name="slot">
+          <label>hoy / mañana<select name="slot">
             <option value="" ${!value.slot ? "selected" : ""}>sin destacar</option>
             <option value="hoy" ${value.slot === "hoy" ? "selected" : ""}>hoy</option>
-            <option value="maÃ±ana" ${value.slot === "maÃ±ana" ? "selected" : ""}>maÃ±ana</option>
+            <option value="mañana" ${value.slot === "mañana" ? "selected" : ""}>mañana</option>
           </select></label>
           <div class="manager-actions">
             <button class="danger-button" type="button" data-delete ${item.id ? "" : "disabled"}>ELIMINAR</button>
@@ -1264,7 +1309,7 @@ function renderManagerPreview(reviewId) {
   screen.innerHTML = `
     <section class="manager-preview-screen">
       <div class="manager-subheader">
-        <button class="text-button" type="button" data-manager-back>â† editor</button>
+        <button class="text-button" type="button" data-manager-back>← editor</button>
         <div>
           <span>PREVIEW</span>
           <h2>${item.title}</h2>
@@ -1283,7 +1328,7 @@ function renderManagerPreview(reviewId) {
         </header>
         <dl class="book-meta">
           <div><dt>EDITORIAL:</dt><dd>${item.publisher}</dd></div>
-          <div><dt>AÃ‘O:</dt><dd>${item.year}</dd></div>
+          <div><dt>AÑO:</dt><dd>${item.year}</dd></div>
           <div><dt>TRADUCCION:</dt><dd>${item.translator}</dd></div>
           <div><dt>PAGINAS:</dt><dd>${item.pages}</dd></div>
         </dl>
@@ -1303,7 +1348,7 @@ function renderManagerDeleteConfirm(reviewId, fallbackCategory = "textos", retur
   screen.innerHTML = `
     <section class="manager-delete-screen">
       <div class="manager-subheader">
-        <button class="text-button" type="button" data-cancel-delete>â† cancelar</button>
+        <button class="text-button" type="button" data-cancel-delete>← cancelar</button>
         <div>
           <span>CONFIRMAR ELIMINACION</span>
           <h2>${item.title}</h2>
@@ -1313,7 +1358,7 @@ function renderManagerDeleteConfirm(reviewId, fallbackCategory = "textos", retur
       <div class="delete-confirm-card">
         ${renderCover(item, "mini")}
         <div>
-          <p>Esta accion elimina la reseÃ±a del panel editorial y de la web visible. Para confirmarlo, escribe el titulo exacto.</p>
+          <p>Esta accion elimina la reseña del panel editorial y de la web visible. Para confirmarlo, escribe el titulo exacto.</p>
           <strong>${item.title}</strong>
           <label>
             titulo exacto
@@ -1337,7 +1382,7 @@ function renderManagerDeleteConfirm(reviewId, fallbackCategory = "textos", retur
   input.addEventListener("input", () => {
     const valid = input.value.trim() === item.title;
     confirm.disabled = !valid;
-    warning.textContent = valid ? "Confirmacion correcta. Puedes eliminar la reseÃ±a." : "El boton se activara cuando el titulo coincida.";
+    warning.textContent = valid ? "Confirmacion correcta. Puedes eliminar la reseña." : "El boton se activara cuando el titulo coincida.";
   });
   confirm.addEventListener("click", async () => {
     if (input.value.trim() !== item.title) return;
@@ -1355,7 +1400,7 @@ function renderManagerBioEditor() {
   screen.innerHTML = `
     <section class="manager-bio-editor">
       <div class="manager-subheader">
-        <button class="text-button" type="button" data-manager-back>â† inicio</button>
+        <button class="text-button" type="button" data-manager-back>← inicio</button>
         <div>
           <span>AUTOBIOGRAFIA</span>
           <h2>YO</h2>
@@ -1365,7 +1410,7 @@ function renderManagerBioEditor() {
       <div class="bio-editor-grid">
         ${["es", "en"].map((lang) => `
           <section class="bio-editor-panel">
-            <h3>${lang === "es" ? "ESPAÃ‘OL" : "INGLES"}</h3>
+            <h3>${lang === "es" ? "ESPAÑOL" : "INGLÉS"}</h3>
             <label>entradilla<textarea name="${lang}-lead" rows="5">${bio[lang].lead}</textarea></label>
             <label>bloque uno<textarea name="${lang}-one" rows="6">${bio[lang].one}</textarea></label>
             <label>bloque dos<textarea name="${lang}-two" rows="6">${bio[lang].two}</textarea></label>
@@ -1413,7 +1458,7 @@ async function saveEditedReview(_editor, rerender = true) {
       alert("No se pudo subir la portada a Supabase. Se guardara la vista previa local.");
     }
   }
-  if (!next.body.length) next.body = ["Nueva reseÃ±a pendiente de escritura."];
+  if (!next.body.length) next.body = ["Nueva reseña pendiente de escritura."];
   const index = reviews.findIndex((item) => item.id === next.id);
   if (index >= 0) reviews[index] = next;
   else reviews.unshift(next);
@@ -1424,7 +1469,7 @@ async function saveEditedReview(_editor, rerender = true) {
   } catch (error) {
     console.error(error);
     supabaseStatus = "error";
-    alert("La reseÃ±a se guardo localmente, pero no se pudo sincronizar con Supabase.");
+    alert("La reseña se guardo localmente, pero no se pudo sincronizar con Supabase.");
   }
   if (rerender) renderManager("editor", { reviewId: next.id, category: next.section });
   return next.id;
@@ -1440,7 +1485,7 @@ async function deleteReview(id, rerender = true) {
   } catch (error) {
     console.error(error);
     supabaseStatus = "error";
-    alert("La reseÃ±a se elimino localmente, pero no se pudo eliminar en Supabase.");
+    alert("La reseña se elimino localmente, pero no se pudo eliminar en Supabase.");
   }
   if (rerender) renderManager("dashboard");
 }

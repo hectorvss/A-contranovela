@@ -8,6 +8,72 @@ const categories = [
   { id: "no", label: "NO", mode: "no" },
 ];
 
+const categoryLabels = {
+  es: {
+    textos: "TEXTOS",
+    flash: "FLASH",
+    escala: "ESCALA",
+    "hoy-manana": "HOY Y MAÑANA",
+    no: "NO",
+    yo: "YO",
+    today: "HOY",
+    tomorrow: "MAÑANA",
+    previous: "← anterior",
+    index: "indice",
+    next: "siguiente →",
+    languageButton: "EN",
+    socialThere: "allí",
+  },
+  en: {
+    textos: "TEXTS",
+    flash: "FLASH",
+    escala: "SCALE",
+    "hoy-manana": "TODAY AND TOMORROW",
+    no: "NO",
+    yo: "ME",
+    today: "TODAY",
+    tomorrow: "TOMORROW",
+    previous: "← previous",
+    index: "index",
+    next: "next →",
+    languageButton: "ES",
+    socialThere: "there",
+  },
+};
+
+const titleTranslations = {
+  "Ensayo sobre el cansancio": "Essay on Tiredness",
+  Austerlitz: "Austerlitz",
+  "Al amigo que no me salvo la vida": "To the Friend Who Did Not Save My Life",
+  "Fin y principio": "The End and the Beginning",
+  "La pasion segun G.H.": "The Passion According to G.H.",
+  "Corazon tan blanco": "A Heart So White",
+  "El sobrino de Wittgenstein": "Wittgenstein's Nephew",
+  "Sobre la fotografia": "On Photography",
+  "Fragmentos de un libro futuro": "Fragments of a Future Book",
+  Stoner: "Stoner",
+  "La vegetariana": "The Vegetarian",
+  "Una educacion": "Educated",
+  "Los detectives salvajes": "The Savage Detectives",
+  "Al faro": "To the Lighthouse",
+  "El lector": "The Reader",
+  "El cielo protector": "The Sheltering Sky",
+  Nada: "Nada",
+  "Suite francesa": "Suite Francaise",
+  "¿Sueñan los androides con ovejas electricas?": "Do Androids Dream of Electric Sheep?",
+  Vertigo: "Vertigo",
+  "La insoportable levedad del ser": "The Unbearable Lightness of Being",
+  Cosmopolis: "Cosmopolis",
+  "Mi lucha 1": "My Struggle 1",
+  "El guardian entre el centeno": "The Catcher in the Rye",
+  "El alquimista": "The Alchemist",
+  "El codigo Da Vinci": "The Da Vinci Code",
+  "La amiga estupenda": "My Brilliant Friend",
+  "Si pudiera volver a verte": "If Only It Were True",
+  "Soldados de Salamina": "Soldiers of Salamis",
+  "Cincuenta sombras de Grey": "Fifty Shades of Grey",
+};
+
 const seedReviews = [
   review("textos", "Peter Handke", "Ensayo sobre el cansancio", "Un libro que afirma el derecho a la inutilidad y al silencio. Handke convierte el cansancio en una forma de atencion: no es una renuncia, es una resistencia intima frente al ruido del mundo.", "8.2", "Alianza", "1990", "Eustaquio Barjau", "72", "1005", "#efe7d8"),
   review("textos", "W. G. Sebald", "Austerlitz", "Memoria, arquitectura, perdida. Sebald construye una narracion donde el pasado nunca es pasado del todo: deambula y nos arrastra con el por los pasillos de la historia.", "9.1", "Anagrama", "2001", "Miguel Saenz", "364", "1035", "#e8e2d3"),
@@ -95,11 +161,13 @@ const els = {
   rightLabel: document.querySelector("#managerButton"),
   homeButton: document.querySelector("#homeButton"),
   noButton: document.querySelector("#noButton"),
+  languageToggle: document.querySelector("#languageToggle"),
   footerManager: document.querySelector("#footerManager"),
 };
 
 let reviews = loadReviews();
 let state = { view: "home", category: null, detail: null };
+let currentLanguage = localStorage.getItem("acontranovela.language") || "es";
 
 renderHome();
 initCustomCursor();
@@ -107,6 +175,7 @@ initCustomCursor();
 els.homeButton.addEventListener("click", renderBio);
 els.noButton.addEventListener("click", () => renderCategory("no"));
 els.backButton.addEventListener("click", goBack);
+els.languageToggle.addEventListener("click", toggleLanguage);
 els.footerManager.addEventListener("click", renderManager);
 window.addEventListener("keydown", (event) => {
   if (event.altKey && event.key.toLowerCase() === "m") {
@@ -128,9 +197,56 @@ function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(reviews));
 }
 
+function t(key) {
+  return categoryLabels[currentLanguage][key] || categoryLabels.es[key] || key;
+}
+
+function displayReview(item) {
+  if (!item) return item;
+  if (currentLanguage === "es") return item;
+  const title = titleTranslations[item.title] || item.title;
+  const summary = buildEnglishSummary(title, item.author, item.section);
+  return {
+    ...item,
+    title,
+    summary,
+    body: buildBodyEnglish(title, item.author, summary),
+  };
+}
+
+function buildEnglishSummary(title, author, section) {
+  if (section === "no") {
+    return `${author}'s ${title} is read here against the grain: a book with cultural weight, but also with visible limits in rhythm, character, or ambition.`;
+  }
+  return `${author}'s ${title} is approached as a literary object of attention, silence and form: a book that asks the reader to slow down and listen to what remains after the plot.`;
+}
+
+function buildBodyEnglish(title, author, summary) {
+  return [
+    `Some books are not simply read: they are crossed. ${title} belongs to that family because ${summary.toLowerCase()} The experience is not exhausted by the argument; it happens in the breathing of the prose, in the way each page manages silence, delay and discomfort.`,
+    `${author} works here with a clear sense of rhythm. The writing does not decorate an idea; it tests it. Every scene seems arranged so the reader can perceive what moves beneath the surface: loss, suspicion, memory, desire, or a way of looking that can no longer return to innocence.`,
+    `What matters most is the tension between form and temperature. The book may look sober, even cold, but there is a persistent energy underneath. Its value lies in refusing to be consumed too quickly.`,
+    `That is why the reading leaves a double impression: the precision of a finished piece and, at the same time, the feeling that something remains open outside the book. Its strength is not to impose a conclusion, but to leave a moral vibration after the final page.`,
+  ];
+}
+
+function toggleLanguage() {
+  currentLanguage = currentLanguage === "es" ? "en" : "es";
+  localStorage.setItem("acontranovela.language", currentLanguage);
+  if (state.view === "home") renderHome();
+  else if (state.view === "bio") renderBio();
+  else if (state.view === "category") renderCategory(state.category);
+  else if (state.view === "detail") renderDetail(state.detail);
+  else renderManager();
+}
+
 function renderHome() {
   state = { view: "home", category: null, detail: null };
   document.body.classList.add("is-home");
+  document.documentElement.lang = currentLanguage;
+  els.homeButton.textContent = t("yo");
+  els.languageToggle.textContent = t("languageButton");
+  document.querySelector('.footer-links a[href="#"]').textContent = t("socialThere");
   els.index.classList.remove("hidden");
   els.panel.classList.add("hidden");
   els.postView.classList.add("hidden");
@@ -138,7 +254,7 @@ function renderHome() {
   els.postList.innerHTML = "";
   els.menu.innerHTML = categories
     .filter((category) => category.id !== "no")
-    .map((category) => `<button class="menu-link" type="button" data-category="${category.id}">${category.label}</button>`)
+    .map((category) => `<button class="menu-link" type="button" data-category="${category.id}">${t(category.id)}</button>`)
     .join("");
   els.menu.querySelectorAll("[data-category]").forEach((button) => {
     button.addEventListener("click", () => renderCategory(button.dataset.category));
@@ -158,16 +274,29 @@ function showPanel(label) {
 
 function renderBio() {
   state = { view: "bio", category: null, detail: null };
-  showPanel("YO");
+  showPanel(t("yo"));
+  const bio = currentLanguage === "es"
+    ? {
+        lead: "Este proyecto nace de una mania privada: leer como quien escucha una habitacion vacia. No busca ordenar el canon, sino registrar una temperatura. Lo que importa no es solo si un libro funciona, sino que tipo de ruido deja en la cabeza.",
+        one: "El manager de <strong>a contranovela</strong> escribe desde una idea sencilla: la critica no deberia sonar como una sentencia, sino como una forma de atencion. Cada texto intenta mirar el libro de cerca, sin convertirlo en mercancia de recomendacion rapida ni en monumento academico.",
+        two: "Aqui conviven reseñas largas, apuntes veloces, escalas semanales, entusiasmos provisionales y negativas razonadas. Hay libros que se aman, libros que se discuten y libros que se dejan caer con cuidado sobre la mesa para escuchar como suenan.",
+        quote: "Leer no para tener razon, sino para afinar la desconfianza.",
+      }
+    : {
+        lead: "This project begins with a private obsession: reading as if listening to an empty room. It does not try to organize the canon, but to register a temperature.",
+        one: "The manager of <strong>a contranovela</strong> writes from a simple idea: criticism should not sound like a verdict, but like a form of attention.",
+        two: "Long reviews, quick notes, weekly scales, provisional enthusiasms and reasoned refusals coexist here. Some books are loved, some are argued with, and some are placed carefully on the table to hear how they sound.",
+        quote: "To read not in order to be right, but to sharpen distrust.",
+      };
   els.postList.innerHTML = `
     <section class="bio-page">
-      <h1>YO</h1>
-      <p class="bio-lead">Este proyecto nace de una mania privada: leer como quien escucha una habitacion vacia. No busca ordenar el canon, sino registrar una temperatura. Lo que importa no es solo si un libro funciona, sino que tipo de ruido deja en la cabeza.</p>
+      <h1>${t("yo")}</h1>
+      <p class="bio-lead">${bio.lead}</p>
       <div class="bio-grid">
-        <p>El manager de <strong>a contranovela</strong> escribe desde una idea sencilla: la critica no deberia sonar como una sentencia, sino como una forma de atencion. Cada texto intenta mirar el libro de cerca, sin convertirlo en mercancia de recomendacion rapida ni en monumento academico.</p>
-        <p>Aqui conviven reseñas largas, apuntes veloces, escalas semanales, entusiasmos provisionales y negativas razonadas. Hay libros que se aman, libros que se discuten y libros que se dejan caer con cuidado sobre la mesa para escuchar como suenan.</p>
+        <p>${bio.one}</p>
+        <p>${bio.two}</p>
       </div>
-      <blockquote>Leer no para tener razon, sino para afinar la desconfianza.</blockquote>
+      <blockquote>${bio.quote}</blockquote>
     </section>
   `;
 }
@@ -175,7 +304,7 @@ function renderBio() {
 function renderCategory(categoryId) {
   const category = categories.find((item) => item.id === categoryId);
   state = { view: "category", category: categoryId, detail: null };
-  showPanel(category.label);
+  showPanel(t(category.id));
   if (category.mode === "scale") return renderScale(category);
   if (category.mode === "today") return renderToday(category);
   if (category.mode === "no") return renderRanked(category, "no-page");
@@ -183,10 +312,10 @@ function renderCategory(categoryId) {
 }
 
 function renderCards(category) {
-  const items = reviews.filter((item) => item.section === category.id);
+  const items = reviews.filter((item) => item.section === category.id).map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page cards-page">
-      <h1>${category.label}</h1>
+      <h1>${t(category.id)}</h1>
       <div class="card-list">
         ${items.map(renderCardRow).join("")}
       </div>
@@ -210,10 +339,10 @@ function renderCardRow(item) {
 }
 
 function renderScale(category) {
-  const items = reviews.filter((item) => item.section === "escala");
+  const items = reviews.filter((item) => item.section === "escala").map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page scale-page">
-      <h1>${category.label}</h1>
+      <h1>${t(category.id)}</h1>
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index)).join("")}
       </div>
@@ -224,10 +353,10 @@ function renderScale(category) {
 }
 
 function renderRanked(category, className) {
-  const items = reviews.filter((item) => item.section === category.id);
+  const items = reviews.filter((item) => item.section === category.id).map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page scale-page ${className}">
-      <h1>${category.label}</h1>
+      <h1>${t(category.id)}</h1>
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index)).join("")}
       </div>
@@ -251,12 +380,12 @@ function renderRankRow(item, index) {
 }
 
 function renderToday() {
-  const today = reviews.find((item) => item.section === "hoy-manana" && item.slot === "hoy");
-  const tomorrow = reviews.find((item) => item.section === "hoy-manana" && item.slot === "mañana");
+  const today = displayReview(reviews.find((item) => item.section === "hoy-manana" && item.slot === "hoy"));
+  const tomorrow = displayReview(reviews.find((item) => item.section === "hoy-manana" && item.slot === "mañana"));
   els.postList.innerHTML = `
     <section class="category-page today-page">
-      ${renderFeature("HOY", today)}
-      ${renderFeature("MAÑANA", tomorrow)}
+      ${renderFeature(t("today"), today)}
+      ${renderFeature(t("tomorrow"), tomorrow)}
     </section>
   `;
   bindRows();
@@ -278,11 +407,12 @@ function renderFeature(label, item) {
 }
 
 function renderDetail(reviewId) {
-  const item = reviews.find((reviewItem) => reviewItem.id === reviewId);
-  if (!item) return renderHome();
-  state = { view: "detail", category: item.section, detail: item.id };
-  const category = categories.find((categoryItem) => categoryItem.id === item.section);
-  showPanel(category?.label || "TEXTOS");
+  const rawItem = reviews.find((reviewItem) => reviewItem.id === reviewId);
+  if (!rawItem) return renderHome();
+  const item = displayReview(rawItem);
+  state = { view: "detail", category: rawItem.section, detail: rawItem.id };
+  const category = categories.find((categoryItem) => categoryItem.id === rawItem.section);
+  showPanel(t(category?.id || "textos"));
   els.postList.classList.add("hidden");
   els.postView.classList.remove("hidden");
   els.postView.innerHTML = `
@@ -306,13 +436,13 @@ function renderDetail(reviewId) {
         ${renderArticleBlocks(item)}
       </div>
       <nav class="detail-nav" aria-label="Navegacion entre reseñas">
-        <button type="button" data-nav="prev">← anterior</button>
-        <button type="button" data-nav="index">indice</button>
-        <button type="button" data-nav="next">siguiente →</button>
+        <button type="button" data-nav="prev">${t("previous")}</button>
+        <button type="button" data-nav="index">${t("index")}</button>
+        <button type="button" data-nav="next">${t("next")}</button>
       </nav>
     </section>
   `;
-  els.postView.querySelector('[data-nav="index"]').addEventListener("click", () => renderCategory(item.section));
+  els.postView.querySelector('[data-nav="index"]').addEventListener("click", () => renderCategory(rawItem.section));
   els.postView.querySelector('[data-nav="prev"]').addEventListener("click", () => moveDetail(-1));
   els.postView.querySelector('[data-nav="next"]').addEventListener("click", () => moveDetail(1));
 }
@@ -564,7 +694,7 @@ function deleteReview(id) {
 }
 
 function categoryLabel(id) {
-  return categories.find((category) => category.id === id)?.label || id;
+  return t(id);
 }
 
 function escapeAttr(value) {

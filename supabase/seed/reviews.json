@@ -971,5 +971,25 @@
         "Por eso la lectura deja una impresion doble. Por un lado, la precision de una pieza cerrada; por otro, la sensacion de que algo sigue abierto fuera del libro. Esa es su fuerza: no imponer una conclusion, sino dejar una vibracion moral que acompaña mucho despues de cerrar la ultima pagina."
       ]
     }
+  ],
+  "editorial_pages": [
+    {
+      "id": "yo",
+      "title": "YO",
+      "content": {
+        "es": {
+          "lead": "Este proyecto nace de una mania privada: leer como quien escucha una habitacion vacia. No busca ordenar el canon, sino registrar una temperatura. Lo que importa no es solo si un libro funciona, sino que tipo de ruido deja en la cabeza.",
+          "one": "El manager de <strong>a contranovela</strong> escribe desde una idea sencilla: la critica no deberia sonar como una sentencia, sino como una forma de atencion. Cada texto intenta mirar el libro de cerca, sin convertirlo en mercancia de recomendacion rapida ni en monumento academico.",
+          "two": "Aqui conviven rese?as largas, apuntes veloces, escalas semanales, entusiasmos provisionales y negativas razonadas. Hay libros que se aman, libros que se discuten y libros que se dejan caer con cuidado sobre la mesa para escuchar como suenan.",
+          "quote": "Leer no para tener razon, sino para afinar la desconfianza."
+        },
+        "en": {
+          "lead": "This project begins with a private obsession: reading as if listening to an empty room. It does not try to organize the canon, but to register a temperature.",
+          "one": "The manager of <strong>a contranovela</strong> writes from a simple idea: criticism should not sound like a verdict, but like a form of attention.",
+          "two": "Long reviews, quick notes, weekly scales, provisional enthusiasms and reasoned refusals coexist here. Some books are loved, some are argued with, and some are placed carefully on the table to hear how they sound.",
+          "quote": "To read not in order to be right, but to sharpen distrust."
+        }
+      }
+    }
   ]
 }

@@ -22,6 +22,14 @@ create table if not exists public.cover_filters (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.editorial_pages (
+  id text primary key,
+  title text not null,
+  content jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table if not exists public.reviews (
   id text primary key,
   section text not null references public.categories(id) on update cascade,
@@ -37,7 +45,7 @@ create table if not exists public.reviews (
   cover_image_url text not null,
   cover_tone text default '#efe7d8',
   cover_filter text not null default 'grayscale(1) contrast(1.05)',
-  slot text check (slot is null or slot in ('', 'hoy', 'ma?ana', 'manana')),
+  slot text check (slot is null or slot in ('', 'hoy', 'mañana', 'manana')),
   body jsonb not null default '[]'::jsonb,
   images jsonb not null default '[]'::jsonb,
   sort_order integer not null default 0,
@@ -61,11 +69,15 @@ $$;
 drop trigger if exists categories_touch_updated_at on public.categories;
 create trigger categories_touch_updated_at before update on public.categories for each row execute function public.touch_updated_at();
 
+drop trigger if exists editorial_pages_touch_updated_at on public.editorial_pages;
+create trigger editorial_pages_touch_updated_at before update on public.editorial_pages for each row execute function public.touch_updated_at();
+
 drop trigger if exists reviews_touch_updated_at on public.reviews;
 create trigger reviews_touch_updated_at before update on public.reviews for each row execute function public.touch_updated_at();
 
 alter table public.categories enable row level security;
 alter table public.cover_filters enable row level security;
+alter table public.editorial_pages enable row level security;
 alter table public.reviews enable row level security;
 
 drop policy if exists "Public read categories" on public.categories;
@@ -73,6 +85,9 @@ create policy "Public read categories" on public.categories for select using (tr
 
 drop policy if exists "Public read cover filters" on public.cover_filters;
 create policy "Public read cover filters" on public.cover_filters for select using (true);
+
+drop policy if exists "Public read editorial pages" on public.editorial_pages;
+create policy "Public read editorial pages" on public.editorial_pages for select using (true);
 
 drop policy if exists "Public read published reviews" on public.reviews;
 create policy "Public read published reviews" on public.reviews for select using (is_published = true);
@@ -82,6 +97,9 @@ create policy "Authenticated manage categories" on public.categories for all to 
 
 drop policy if exists "Authenticated manage cover filters" on public.cover_filters;
 create policy "Authenticated manage cover filters" on public.cover_filters for all to authenticated using (true) with check (true);
+
+drop policy if exists "Authenticated manage editorial pages" on public.editorial_pages;
+create policy "Authenticated manage editorial pages" on public.editorial_pages for all to authenticated using (true) with check (true);
 
 drop policy if exists "Authenticated manage reviews" on public.reviews;
 create policy "Authenticated manage reviews" on public.reviews for all to authenticated using (true) with check (true);
@@ -135,6 +153,23 @@ insert into public.cover_filters (label, css_filter, sort_order) values
   ('Color bajo', 'saturate(.45) contrast(1.05)', 19),
   ('Original', 'none', 20)
 on conflict (label) do update set css_filter = excluded.css_filter, sort_order = excluded.sort_order;
+
+insert into public.editorial_pages (id, title, content) values
+  ('yo', 'YO', '{
+    "es": {
+      "lead": "Este proyecto nace de una mania privada: leer como quien escucha una habitacion vacia. No busca ordenar el canon, sino registrar una temperatura. Lo que importa no es solo si un libro funciona, sino que tipo de ruido deja en la cabeza.",
+      "one": "El manager de <strong>a contranovela</strong> escribe desde una idea sencilla: la critica no deberia sonar como una sentencia, sino como una forma de atencion. Cada texto intenta mirar el libro de cerca, sin convertirlo en mercancia de recomendacion rapida ni en monumento academico.",
+      "two": "Aqui conviven reseñas largas, apuntes veloces, escalas semanales, entusiasmos provisionales y negativas razonadas. Hay libros que se aman, libros que se discuten y libros que se dejan caer con cuidado sobre la mesa para escuchar como suenan.",
+      "quote": "Leer no para tener razon, sino para afinar la desconfianza."
+    },
+    "en": {
+      "lead": "This project begins with a private obsession: reading as if listening to an empty room. It does not try to organize the canon, but to register a temperature.",
+      "one": "The manager of <strong>a contranovela</strong> writes from a simple idea: criticism should not sound like a verdict, but like a form of attention.",
+      "two": "Long reviews, quick notes, weekly scales, provisional enthusiasms and reasoned refusals coexist here. Some books are loved, some are argued with, and some are placed carefully on the table to hear how they sound.",
+      "quote": "To read not in order to be right, but to sharpen distrust."
+    }
+  }'::jsonb)
+on conflict (id) do update set title = excluded.title, content = excluded.content;
 
 insert into public.reviews (id, section, author, title, subtitle, summary, score, publisher, publication_year, translator, pages, cover_image_url, cover_tone, cover_filter, slot, body, images, sort_order, is_published) values
   ('textos-peter-handke-ensayo-sobre-el-cansancio', 'textos', 'Peter Handke', 'Ensayo sobre el cansancio', null, 'Un libro que afirma el derecho a la inutilidad y al silencio. Handke convierte el cansancio en una forma de atencion: no es una renuncia, es una resistencia intima frente al ruido del mundo.', 8.2, 'Alianza', '1990', 'Eustaquio Barjau', '72', 'https://picsum.photos/id/1005/420/560', '#efe7d8', 'grayscale(1) contrast(1.05)', null, '["Hay libros que no se leen: se atraviesan. Ensayo sobre el cansancio pertenece a esa familia porque un libro que afirma el derecho a la inutilidad y al silencio. handke convierte el cansancio en una forma de atencion: no es una renuncia, es una resistencia intima frente al ruido del mundo. La experiencia no se agota en el argumento; sucede en la respiracion, en la forma en que cada pagina administra sus silencios y en la incomodidad que deja despues.","Peter Handke trabaja aqui con una conciencia muy clara del ritmo. La escritura no busca decorar una idea, sino ponerla a prueba. Cada escena parece medida para que el lector perciba lo que ocurre debajo de la superficie: una perdida, una sospecha, una educacion sentimental o una manera de mirar que ya no puede volver atras.","Lo mas interesante esta en la tension entre forma y temperatura. El libro puede parecer sobrio, incluso frio, pero debajo hay una energia persistente. La prosa no explica de mas; organiza el espacio para que aparezca una pregunta: que queda de una vida cuando se la mira sin consuelo y sin grandes gestos.","Tambien importa la manera en que el libro entiende al lector. No lo trata como consumidor de argumento, sino como alguien capaz de quedarse dentro de una escena cuando la escena ya ha terminado. Esa confianza cambia la lectura: obliga a mirar los detalles laterales, los cambios de tono, las repeticiones y las omisiones que al principio parecian menores.","En terminos de estructura, la obra funciona por acumulacion discreta. No depende de un unico golpe ni de una frase memorable convertida en cartel; su potencia aparece cuando las capas empiezan a tocarse. Entonces se comprende que la forma no era un recipiente, sino el verdadero asunto: el modo en que una experiencia encuentra o pierde su lenguaje.","La pregunta que deja Ensayo sobre el cansancio no es si nos ha gustado, sino que clase de atencion nos ha exigido. Esa diferencia es importante. Hay libros que piden velocidad y libros que piden demora; este pertenece a los segundos, incluso cuando parece breve, directo o transparente. Su valor esta en esa resistencia a ser liquidado demasiado pronto.","Por eso la lectura deja una impresion doble. Por un lado, la precision de una pieza cerrada; por otro, la sensacion de que algo sigue abierto fuera del libro. Esa es su fuerza: no imponer una conclusion, sino dejar una vibracion moral que acompaña mucho despues de cerrar la ultima pagina."]'::jsonb, '[]'::jsonb, 1, true),

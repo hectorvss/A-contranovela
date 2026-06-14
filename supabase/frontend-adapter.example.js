@@ -8,15 +8,25 @@ const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export async function fetchEditorialData() {
-  const [{ data: categories, error: categoriesError }, { data: reviews, error: reviewsError }] = await Promise.all([
+  const [
+    { data: categories, error: categoriesError },
+    { data: reviews, error: reviewsError },
+    { data: pages, error: pagesError },
+  ] = await Promise.all([
     db.from("categories").select("*").order("sort_order"),
     db.from("reviews").select("*").eq("is_published", true).order("sort_order"),
+    db.from("editorial_pages").select("*"),
   ]);
 
   if (categoriesError) throw categoriesError;
   if (reviewsError) throw reviewsError;
+  if (pagesError) throw pagesError;
 
-  return { categories, reviews: reviews.map(fromSupabaseReview) };
+  return {
+    categories,
+    pages: Object.fromEntries(pages.map((page) => [page.id, page])),
+    reviews: reviews.map(fromSupabaseReview),
+  };
 }
 
 export async function saveReview(review) {
@@ -29,6 +39,16 @@ export async function saveReview(review) {
 export async function deleteReview(id) {
   const { error } = await db.from("reviews").delete().eq("id", id);
   if (error) throw error;
+}
+
+export async function saveEditorialPage(id, title, content) {
+  const { data, error } = await db
+    .from("editorial_pages")
+    .upsert({ id, title, content })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 export async function uploadCover(file, reviewId) {
@@ -86,4 +106,3 @@ function toSupabaseReview(review) {
     is_published: true,
   };
 }
-

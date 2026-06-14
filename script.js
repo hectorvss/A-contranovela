@@ -1,6 +1,7 @@
 const STORAGE_KEY = "acontranovela.reviews.v1";
 const BIO_STORAGE_KEY = "acontranovela.bio.v1";
 const MANAGER_PASSWORD = "LMF39";
+const SUPABASE_CONFIG = window.ACONTRANOVELA_SUPABASE || {};
 const coverFilterPresets = [
   { label: "B/N limpio", value: "grayscale(1) contrast(1.05)" },
   { label: "B/N duro", value: "grayscale(1) contrast(1.45)" },
@@ -211,9 +212,14 @@ let managerState = { screen: "dashboard", category: null, reviewId: null };
 let managerShortcutBuffer = "";
 let managerShortcutTimer = null;
 let managerDraggedBlock = null;
+let pendingCoverFile = null;
+let editorialPages = {};
+let supabaseClient = null;
+let supabaseStatus = "local";
 
 renderHome();
 initCustomCursor();
+initSupabaseData();
 
 els.homeButton.addEventListener("click", renderBio);
 els.noButton.addEventListener("click", () => renderCategory("no"));
@@ -251,6 +257,163 @@ function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(reviews));
 }
 
+function hasSupabaseConfig() {
+  return Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey && window.supabase);
+}
+
+function getSupabaseClient() {
+  if (!hasSupabaseConfig()) return null;
+  if (!supabaseClient) {
+    supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+  }
+  return supabaseClient;
+}
+
+async function initSupabaseData() {
+  const client = getSupabaseClient();
+  if (!client) {
+    supabaseStatus = "local";
+    return;
+  }
+  try {
+    const [
+      { data: remoteReviews, error: reviewsError },
+      { data: pages, error: pagesError },
+    ] = await Promise.all([
+      client.from("reviews").select("*").eq("is_published", true).order("sort_order"),
+      client.from("editorial_pages").select("*"),
+    ]);
+    if (reviewsError) throw reviewsError;
+    if (pagesError) throw pagesError;
+    reviews = remoteReviews.map(fromSupabaseReview);
+    editorialPages = Object.fromEntries((pages || []).map((page) => [page.id, page]));
+    const yo = editorialPages.yo?.content;
+    if (yo) saveBioContent(yo);
+    persist();
+    supabaseStatus = "online";
+    rerenderCurrentView();
+  } catch (error) {
+    console.warn("Supabase load failed; using local fallback.", error);
+    supabaseStatus = "error";
+  }
+}
+
+function rerenderCurrentView() {
+  if (state.view === "home") renderHome();
+  else if (state.view === "bio") renderBio();
+  else if (state.view === "category") renderCategory(state.category);
+  else if (state.view === "detail") renderDetail(state.detail);
+  else if (state.view === "manager") renderManager(managerState.screen, {
+    category: managerState.category,
+    reviewId: managerState.reviewId,
+  });
+}
+
+async function ensureManagerSession(password) {
+  const client = getSupabaseClient();
+  if (!client) return true;
+  if (!SUPABASE_CONFIG.managerEmail) {
+    console.warn("Supabase is configured, but managerEmail is missing in supabase-config.js.");
+    return false;
+  }
+  const { data: { session } } = await client.auth.getSession();
+  if (session) return true;
+  const { error } = await client.auth.signInWithPassword({
+    email: SUPABASE_CONFIG.managerEmail,
+    password,
+  });
+  if (error) throw error;
+  return true;
+}
+
+function fromSupabaseReview(row) {
+  return {
+    id: row.id,
+    section: row.section,
+    author: row.author,
+    title: row.title,
+    subtitle: row.subtitle || "",
+    summary: row.summary,
+    score: row.score?.toString() || "",
+    publisher: row.publisher || "",
+    year: row.publication_year || "",
+    translator: row.translator || "",
+    pages: row.pages || "",
+    image: row.cover_image_url,
+    tone: row.cover_tone || "#efe7d8",
+    coverFilter: row.cover_filter || "grayscale(1) contrast(1.05)",
+    slot: row.slot || "",
+    body: Array.isArray(row.body) ? row.body : [],
+    images: Array.isArray(row.images) ? row.images : [],
+  };
+}
+
+function toSupabaseReview(review, sortOrder) {
+  return {
+    id: review.id,
+    section: review.section,
+    author: review.author,
+    title: review.title,
+    subtitle: review.subtitle || null,
+    summary: review.summary,
+    score: review.score ? Number(review.score) : null,
+    publisher: review.publisher || null,
+    publication_year: review.year || null,
+    translator: review.translator || null,
+    pages: review.pages || null,
+    cover_image_url: review.image,
+    cover_tone: review.tone || "#efe7d8",
+    cover_filter: review.coverFilter || "grayscale(1) contrast(1.05)",
+    slot: review.slot || "",
+    body: review.body || [],
+    images: review.images || [],
+    sort_order: sortOrder,
+    is_published: true,
+  };
+}
+
+async function persistReviewToSupabase(review) {
+  const client = getSupabaseClient();
+  if (!client) return null;
+  const sortOrder = Math.max(1, reviews.findIndex((item) => item.id === review.id) + 1);
+  const payload = toSupabaseReview(review, sortOrder);
+  const { data, error } = await client.from("reviews").upsert(payload).select().single();
+  if (error) throw error;
+  return fromSupabaseReview(data);
+}
+
+async function deleteReviewFromSupabase(id) {
+  const client = getSupabaseClient();
+  if (!client) return;
+  const { error } = await client.from("reviews").delete().eq("id", id);
+  if (error) throw error;
+}
+
+async function saveBioToSupabase(nextBio) {
+  const client = getSupabaseClient();
+  if (!client) return;
+  const { data, error } = await client
+    .from("editorial_pages")
+    .upsert({ id: "yo", title: "YO", content: nextBio })
+    .select()
+    .single();
+  if (error) throw error;
+  editorialPages.yo = data;
+}
+
+async function uploadCoverToSupabase(file, reviewId) {
+  const client = getSupabaseClient();
+  if (!client || !file) return "";
+  const extension = file.type === "image/png" ? "png" : "jpg";
+  const path = `${reviewId}/${Date.now()}.${extension}`;
+  const { error } = await client.storage.from("covers").upload(path, file, {
+    contentType: file.type,
+    upsert: true,
+  });
+  if (error) throw error;
+  return client.storage.from("covers").getPublicUrl(path).data.publicUrl;
+}
+
 function loadBioContent() {
   try {
     const stored = JSON.parse(localStorage.getItem(BIO_STORAGE_KEY) || "{}");
@@ -274,6 +437,12 @@ function currentBio() {
 
 function t(key) {
   return categoryLabels[currentLanguage][key] || categoryLabels.es[key] || key;
+}
+
+function syncStatusLabel() {
+  if (supabaseStatus === "online") return "SUPABASE CONECTADO";
+  if (supabaseStatus === "error") return "SUPABASE SIN SINCRONIZAR";
+  return "MODO LOCAL";
 }
 
 function displayReview(item) {
@@ -368,10 +537,21 @@ function requestManagerAccess() {
   document.body.appendChild(gate);
   const input = gate.querySelector("[data-manager-password]");
   const error = gate.querySelector("[data-manager-error]");
-  const unlock = () => {
+  const unlock = async () => {
     if (input.value === MANAGER_PASSWORD) {
-      closeManagerGate();
-      renderManager();
+      try {
+        error.textContent = "Conectando...";
+        const ready = await ensureManagerSession(input.value);
+        if (!ready) {
+          error.textContent = "Configura managerEmail en supabase-config.js.";
+          return;
+        }
+        closeManagerGate();
+        renderManager();
+      } catch (authError) {
+        console.error(authError);
+        error.textContent = "No se pudo autenticar en Supabase.";
+      }
       return;
     }
     error.textContent = "Contraseña incorrecta.";
@@ -826,6 +1006,7 @@ function bindManagerBlockControls(editor) {
     coverFile.onchange = () => {
       const file = coverFile.files?.[0];
       if (!isSupportedImage(file)) return;
+      pendingCoverFile = file;
       readImageFile(file, (dataUrl) => {
         const coverInput = editor.querySelector("[data-cover-url]");
         const coverImage = editor.querySelector(".cover-preview-large img");
@@ -856,7 +1037,7 @@ function readImageFile(file, callback) {
   reader.readAsDataURL(file);
 }
 
-function saveEditedReview(_editor, rerender = true) {
+async function saveEditedReview(_editor, rerender = true) {
   const formData = new FormData(els.managerForm);
   const next = Object.fromEntries(formData.entries());
   next.id = next.id || `${next.section}-${slug(next.author)}-${slug(next.title)}-${Date.now()}`;
@@ -942,6 +1123,7 @@ function renderManager(screen = "dashboard", options = {}) {
           <span class="manager-kicker">PANEL EDITORIAL</span>
           <h1>MANAGER</h1>
           <p>Elige una seccion, administra documentos y edita cada reseña por bloques.</p>
+          <small class="manager-sync-state">${syncStatusLabel()}</small>
         </div>
         <div class="manager-header-actions">
           <button class="manager-nav-button" type="button" data-manager-dashboard>INICIO</button>
@@ -1208,8 +1390,8 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
       returnScreen: "editor",
     });
   });
-  screen.querySelector("[data-preview]").addEventListener("click", () => {
-    const id = saveEditedReview(null, false);
+  screen.querySelector("[data-preview]").addEventListener("click", async () => {
+    const id = await saveEditedReview(null, false);
     renderManager("preview", { reviewId: id, category: value.section });
   });
   bindManagerBlockControls(screen);
@@ -1299,9 +1481,9 @@ function renderManagerDeleteConfirm(reviewId, fallbackCategory = "textos", retur
     confirm.disabled = !valid;
     warning.textContent = valid ? "Confirmacion correcta. Puedes eliminar la reseña." : "El boton se activara cuando el titulo coincida.";
   });
-  confirm.addEventListener("click", () => {
+  confirm.addEventListener("click", async () => {
     if (input.value.trim() !== item.title) return;
-    deleteReview(item.id, false);
+    await deleteReview(item.id, false);
     if (returnScreen === "category" || returnScreen === "editor") renderManager("category", { category: item.section });
     else renderManager("dashboard");
   });
@@ -1336,7 +1518,7 @@ function renderManagerBioEditor() {
     </section>
   `;
   screen.querySelector("[data-manager-back]").addEventListener("click", () => renderManager("dashboard"));
-  screen.querySelector("[data-save-bio]").addEventListener("click", () => {
+  screen.querySelector("[data-save-bio]").addEventListener("click", async () => {
     const nextBio = { es: {}, en: {} };
     ["es", "en"].forEach((lang) => {
       ["lead", "one", "two", "quote"].forEach((field) => {
@@ -1344,6 +1526,14 @@ function renderManagerBioEditor() {
       });
     });
     saveBioContent(nextBio);
+    try {
+      await saveBioToSupabase(nextBio);
+      supabaseStatus = getSupabaseClient() ? "online" : "local";
+    } catch (error) {
+      console.error(error);
+      supabaseStatus = "error";
+      alert("La autobiografia se guardo localmente, pero no se pudo sincronizar con Supabase.");
+    }
     renderManager("bio");
   });
 }
@@ -1364,9 +1554,57 @@ function saveEditedReview(_editor, rerender = true) {
   return next.id;
 }
 
-function deleteReview(id, rerender = true) {
+async function deleteReview(id, rerender = true) {
   if (!id) return;
   reviews = reviews.filter((item) => item.id !== id);
   persist();
+  if (rerender) renderManager("dashboard");
+}
+
+async function saveEditedReview(_editor, rerender = true) {
+  const formData = new FormData(els.managerForm);
+  const next = Object.fromEntries(formData.entries());
+  next.id = next.id || `${next.section}-${slug(next.author)}-${slug(next.title)}-${Date.now()}`;
+  next.slot = next.section === "hoy-manana" ? next.slot || "hoy" : next.slot || "";
+  next.body = formData.getAll("bodyBlock").map((paragraph) => paragraph.trim()).filter(Boolean);
+  next.images = formData.getAll("articleImage").map((image) => image.trim()).filter(Boolean);
+  if (pendingCoverFile && getSupabaseClient()) {
+    try {
+      next.image = await uploadCoverToSupabase(pendingCoverFile, next.id);
+      pendingCoverFile = null;
+    } catch (error) {
+      console.error(error);
+      alert("No se pudo subir la portada a Supabase. Se guardara la vista previa local.");
+    }
+  }
+  if (!next.body.length) next.body = ["Nueva reseña pendiente de escritura."];
+  const index = reviews.findIndex((item) => item.id === next.id);
+  if (index >= 0) reviews[index] = next;
+  else reviews.unshift(next);
+  persist();
+  try {
+    await persistReviewToSupabase(next);
+    supabaseStatus = getSupabaseClient() ? "online" : "local";
+  } catch (error) {
+    console.error(error);
+    supabaseStatus = "error";
+    alert("La reseña se guardo localmente, pero no se pudo sincronizar con Supabase.");
+  }
+  if (rerender) renderManager("editor", { reviewId: next.id, category: next.section });
+  return next.id;
+}
+
+async function deleteReview(id, rerender = true) {
+  if (!id) return;
+  reviews = reviews.filter((item) => item.id !== id);
+  persist();
+  try {
+    await deleteReviewFromSupabase(id);
+    supabaseStatus = getSupabaseClient() ? "online" : "local";
+  } catch (error) {
+    console.error(error);
+    supabaseStatus = "error";
+    alert("La reseña se elimino localmente, pero no se pudo eliminar en Supabase.");
+  }
   if (rerender) renderManager("dashboard");
 }

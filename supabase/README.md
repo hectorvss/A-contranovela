@@ -56,9 +56,28 @@ Expected initial counts:
 
 ## Frontend migration notes
 
-When the Supabase project URL and anon key are available, the app should replace the local `seedReviews/localStorage` flow with:
+The frontend now includes a Supabase bridge. Fill `supabase-config.js` before deploying:
+
+```js
+window.ACONTRANOVELA_SUPABASE = {
+  url: "https://YOUR_PROJECT.supabase.co",
+  anonKey: "YOUR_SUPABASE_ANON_KEY",
+  managerEmail: "manager@example.com",
+};
+```
+
+Create a Supabase Auth user for the manager:
+
+- Email: the same value used in `managerEmail`.
+- Password: `LMF39`.
+
+The manager popup password is used to sign in with Supabase Auth. This keeps the anon key public while writes still use the authenticated RLS policies.
+
+The app now uses:
 
 - `select` from `reviews` and `categories` for public rendering.
 - `select` from `editorial_pages` for `YO`.
 - authenticated `insert`, `update`, `delete` on `reviews` and `editorial_pages` from the manager.
 - upload cover files to the `covers` bucket and store the public URL in `reviews.cover_image_url`.
+
+If `supabase-config.js` is empty, the app continues using the local seed and `localStorage` fallback.

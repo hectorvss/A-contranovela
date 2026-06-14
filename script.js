@@ -1,4 +1,26 @@
 const STORAGE_KEY = "acontranovela.reviews.v1";
+const coverFilterPresets = [
+  { label: "B/N limpio", value: "grayscale(1) contrast(1.05)" },
+  { label: "B/N duro", value: "grayscale(1) contrast(1.45)" },
+  { label: "B/N suave", value: "grayscale(1) contrast(.9) brightness(1.08)" },
+  { label: "Alto grano", value: "grayscale(1) contrast(1.7) brightness(.95)" },
+  { label: "Archivo", value: "grayscale(1) sepia(.18) contrast(1.15)" },
+  { label: "Prensa", value: "grayscale(1) contrast(1.3) brightness(1.05)" },
+  { label: "Nocturno", value: "grayscale(1) contrast(1.25) brightness(.78)" },
+  { label: "Quemado", value: "grayscale(1) contrast(1.55) brightness(1.18)" },
+  { label: "Plata", value: "grayscale(1) contrast(.82) brightness(1.22)" },
+  { label: "Carbón", value: "grayscale(1) contrast(1.8) brightness(.82)" },
+  { label: "Mate", value: "grayscale(1) saturate(.15) contrast(.95)" },
+  { label: "Niebla", value: "grayscale(1) contrast(.72) brightness(1.18)" },
+  { label: "Xerox", value: "grayscale(1) contrast(2) brightness(1.05)" },
+  { label: "Cine", value: "grayscale(1) contrast(1.2) brightness(.9)" },
+  { label: "Editorial", value: "grayscale(1) contrast(1.12) brightness(1.02)" },
+  { label: "Papel", value: "grayscale(.9) sepia(.12) contrast(1.05)" },
+  { label: "Frío", value: "grayscale(.85) saturate(.35) contrast(1.08)" },
+  { label: "Cálido", value: "grayscale(.75) sepia(.28) contrast(1.03)" },
+  { label: "Color bajo", value: "saturate(.45) contrast(1.05)" },
+  { label: "Original", value: "none" },
+];
 
 const categories = [
   { id: "textos", label: "TEXTOS", mode: "cards" },
@@ -169,6 +191,9 @@ let reviews = loadReviews();
 let state = { view: "home", category: null, detail: null };
 let currentLanguage = localStorage.getItem("acontranovela.language") || "es";
 let managerState = { screen: "dashboard", category: null, reviewId: null };
+let managerShortcutBuffer = "";
+let managerShortcutTimer = null;
+let managerDraggedBlock = null;
 
 renderHome();
 initCustomCursor();
@@ -179,8 +204,19 @@ els.backButton.addEventListener("click", goBack);
 els.languageToggle.addEventListener("click", toggleLanguage);
 els.footerManager.addEventListener("click", renderManager);
 window.addEventListener("keydown", (event) => {
-  if (event.altKey && event.key.toLowerCase() === "m") {
-    event.preventDefault();
+  if (event.target?.closest?.("input, textarea, select")) return;
+  if (event.key.length !== 1) return;
+  const shortcutKey = event.key.toLowerCase();
+  if (!"lmf".includes(shortcutKey)) return;
+  if (event.altKey || managerShortcutBuffer) event.preventDefault();
+  managerShortcutBuffer += shortcutKey;
+  managerShortcutBuffer = managerShortcutBuffer.slice(-3);
+  window.clearTimeout(managerShortcutTimer);
+  managerShortcutTimer = window.setTimeout(() => {
+    managerShortcutBuffer = "";
+  }, 1400);
+  if (managerShortcutBuffer === "lmf") {
+    managerShortcutBuffer = "";
     renderManager();
   }
 });
@@ -449,12 +485,10 @@ function renderDetail(reviewId) {
 }
 
 function renderCover(item, size) {
+  const coverFilter = item.coverFilter || "grayscale(1) contrast(1.05)";
   return `
     <span class="book-cover ${size}" style="--cover-tone: ${item.tone}">
-      <span class="cover-author">${item.author}</span>
-      <strong>${item.title}</strong>
-      <img src="${item.image}" alt="" loading="lazy" />
-      <small>${item.publisher}</small>
+      <img src="${item.image}" alt="${escapeAttr(`${item.title} - ${item.author}`)}" loading="lazy" style="filter:${coverFilter}" />
     </span>
   `;
 }
@@ -562,6 +596,7 @@ function editReview(item = {}) {
     pages: item.pages || "",
     image: item.image || images[0] || "https://picsum.photos/id/1005/420/560",
     tone: item.tone || "#efe7d8",
+    coverFilter: item.coverFilter || "grayscale(1) contrast(1.05)",
     slot: item.slot || "",
   };
   editor.innerHTML = `
@@ -619,8 +654,12 @@ function editReview(item = {}) {
 
 function renderTextBlock(value = "") {
   return `
-    <section class="content-block" data-text-block>
-      <div class="block-handle">TEXTO</div>
+    <section class="content-block manager-block" data-text-block>
+      <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Arrastrar bloque">↕</button>
+      <div class="block-handle">
+        <strong>TEXTO</strong>
+        <span>arrastra la pestaña o usa las flechas</span>
+      </div>
       <textarea name="bodyBlock" rows="5" placeholder="Escribe un bloque de la reseña">${value}</textarea>
       <div class="block-actions">
         <button type="button" data-move-up>↑</button>
@@ -633,9 +672,16 @@ function renderTextBlock(value = "") {
 
 function renderImageBlock(value = "") {
   return `
-    <section class="image-block" data-image-block>
+    <section class="image-block manager-block" data-image-block>
+      <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Arrastrar foto">↕</button>
       <img src="${value}" alt="" loading="lazy" />
-      <input name="articleImage" value="${value}" placeholder="URL de imagen" />
+      <div class="image-block-fields">
+        <div class="block-handle">
+          <strong>FOTO</strong>
+          <span>pega URL y ordenala por arrastre</span>
+        </div>
+        <input name="articleImage" value="${value}" placeholder="URL de imagen" />
+      </div>
       <div class="block-actions">
         <button type="button" data-move-up>↑</button>
         <button type="button" data-move-down>↓</button>
@@ -646,14 +692,14 @@ function renderImageBlock(value = "") {
 }
 
 function bindManagerBlockControls(editor) {
-  editor.querySelector("[data-add-block]").addEventListener("click", () => {
+  editor.querySelector("[data-add-block]").onclick = () => {
     editor.querySelector("[data-blocks]").insertAdjacentHTML("beforeend", renderTextBlock());
     bindManagerBlockControls(editor);
-  }, { once: true });
-  editor.querySelector("[data-add-image]").addEventListener("click", () => {
+  };
+  editor.querySelector("[data-add-image]").onclick = () => {
     editor.querySelector("[data-images]").insertAdjacentHTML("beforeend", renderImageBlock("https://picsum.photos/id/1005/420/560"));
     bindManagerBlockControls(editor);
-  }, { once: true });
+  };
   editor.querySelectorAll("[data-move-up]").forEach((button) => {
     button.onclick = () => {
       const block = button.closest("[data-text-block], [data-image-block]");
@@ -669,6 +715,75 @@ function bindManagerBlockControls(editor) {
   editor.querySelectorAll("[data-remove-block]").forEach((button) => {
     button.onclick = () => button.closest("[data-text-block], [data-image-block]")?.remove();
   });
+  editor.querySelectorAll("[data-drag-handle]").forEach((handle) => {
+    handle.ondragstart = (event) => {
+      managerDraggedBlock = handle.closest("[data-text-block], [data-image-block]");
+      managerDraggedBlock?.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", "manager-block");
+    };
+    handle.ondragend = () => {
+      managerDraggedBlock?.classList.remove("is-dragging");
+      managerDraggedBlock = null;
+      editor.querySelectorAll(".is-drop-target").forEach((block) => block.classList.remove("is-drop-target"));
+    };
+  });
+  editor.querySelectorAll(".manager-block").forEach((block) => {
+    block.ondragover = (event) => {
+      if (!managerDraggedBlock || managerDraggedBlock === block) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      block.classList.add("is-drop-target");
+    };
+    block.ondragleave = () => block.classList.remove("is-drop-target");
+    block.ondrop = (event) => {
+      event.preventDefault();
+      block.classList.remove("is-drop-target");
+      if (!managerDraggedBlock || managerDraggedBlock === block || managerDraggedBlock.parentElement !== block.parentElement) return;
+      const rect = block.getBoundingClientRect();
+      const after = event.clientY > rect.top + rect.height / 2;
+      block.parentElement.insertBefore(managerDraggedBlock, after ? block.nextElementSibling : block);
+    };
+  });
+  editor.querySelectorAll("[name='articleImage']").forEach((input) => {
+    input.oninput = () => {
+      const image = input.closest("[data-image-block]")?.querySelector("img");
+      if (image) image.src = input.value;
+    };
+  });
+  const coverFile = editor.querySelector("[data-cover-file]");
+  if (coverFile) {
+    coverFile.onchange = () => {
+      const file = coverFile.files?.[0];
+      if (!isSupportedImage(file)) return;
+      readImageFile(file, (dataUrl) => {
+        const coverInput = editor.querySelector("[data-cover-url]");
+        const coverImage = editor.querySelector(".cover-preview-large img");
+        if (coverInput) coverInput.value = dataUrl;
+        if (coverImage) coverImage.src = dataUrl;
+      });
+    };
+  }
+  editor.querySelectorAll("[data-cover-filter]").forEach((button) => {
+    button.onclick = () => {
+      const filter = button.dataset.coverFilter;
+      const input = editor.querySelector("[data-cover-filter-value]");
+      const coverImage = editor.querySelector(".cover-preview-large img");
+      if (input) input.value = filter;
+      if (coverImage) coverImage.style.filter = filter;
+      editor.querySelectorAll("[data-cover-filter]").forEach((item) => item.classList.toggle("is-active", item === button));
+    };
+  });
+}
+
+function isSupportedImage(file) {
+  return Boolean(file && ["image/png", "image/jpeg"].includes(file.type));
+}
+
+function readImageFile(file, callback) {
+  const reader = new FileReader();
+  reader.onload = () => callback(String(reader.result || ""));
+  reader.readAsDataURL(file);
 }
 
 function saveEditedReview(_editor, rerender = true) {
@@ -759,9 +874,9 @@ function renderManager(screen = "dashboard", options = {}) {
           <p>Elige una seccion, administra documentos y edita cada reseña por bloques.</p>
         </div>
         <div class="manager-header-actions">
-          <button class="submit-button" type="button" data-manager-dashboard>INICIO</button>
-          <button class="text-button manager-shortcut" type="button" data-manager-new>NUEVA</button>
-          <button class="text-button manager-shortcut" type="button" title="Atajo: Alt + M">ALT + M</button>
+          <button class="manager-nav-button" type="button" data-manager-dashboard>INICIO</button>
+          <button class="manager-nav-button" type="button" data-manager-new>NUEVA</button>
+          <button class="text-button manager-shortcut" type="button" title="Atajo: pulsa L M F">LMF</button>
         </div>
       </header>
       <div class="manager-screen" id="managerScreen"></div>
@@ -772,7 +887,14 @@ function renderManager(screen = "dashboard", options = {}) {
   if (screen === "category") renderManagerCategory(managerState.category);
   else if (screen === "editor") renderManagerEditor(managerState.reviewId, managerState.category);
   else if (screen === "preview") renderManagerPreview(managerState.reviewId);
+  else if (screen === "delete") renderManagerDeleteConfirm(managerState.reviewId, managerState.category, options.returnScreen || "dashboard");
   else renderManagerDashboard();
+  updateManagerNavState(screen);
+}
+
+function updateManagerNavState(screen) {
+  els.managerForm.querySelector("[data-manager-dashboard]")?.classList.toggle("is-active", screen === "dashboard");
+  els.managerForm.querySelector("[data-manager-new]")?.classList.toggle("is-active", screen === "editor" && !managerState.reviewId);
 }
 
 function getManagerScreen() {
@@ -804,6 +926,13 @@ function renderManagerDashboard() {
   });
   getManagerScreen().querySelectorAll("[data-dashboard-preview]").forEach((button) => {
     button.addEventListener("click", () => renderManager("preview", { reviewId: button.dataset.dashboardPreview, category: button.dataset.category }));
+  });
+  getManagerScreen().querySelectorAll("[data-dashboard-delete]").forEach((button) => {
+    button.addEventListener("click", () => renderManager("delete", {
+      reviewId: button.dataset.dashboardDelete,
+      category: button.dataset.category,
+      returnScreen: "dashboard",
+    }));
   });
 }
 
@@ -840,6 +969,7 @@ function renderManagerCategoryLane(category) {
                   <div>
                     <button type="button" data-dashboard-edit="${item.id}" data-category="${category.id}">editar</button>
                     <button type="button" data-dashboard-preview="${item.id}" data-category="${category.id}">preview</button>
+                    <button type="button" data-dashboard-delete="${item.id}" data-category="${category.id}">eliminar</button>
                   </div>
                 </div>
               `
@@ -885,10 +1015,11 @@ function renderManagerCategory(categoryId) {
     button.addEventListener("click", () => renderManager("preview", { reviewId: button.dataset.preview, category: category.id }));
   });
   screen.querySelectorAll("[data-delete]").forEach((button) => {
-    button.addEventListener("click", () => {
-      deleteReview(button.dataset.delete, false);
-      renderManager("category", { category: category.id });
-    });
+    button.addEventListener("click", () => renderManager("delete", {
+      reviewId: button.dataset.delete,
+      category: category.id,
+      returnScreen: "category",
+    }));
   });
 }
 
@@ -964,7 +1095,7 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
         </div>
         <aside class="compose-side">
           <div class="cover-preview-large">${renderCover({ ...value, publisher: value.publisher || "editorial" }, "small")}</div>
-          <label>seccion<select name="section">${categories.map((category) => `<option value="${category.id}" ${category.id === value.section ? "selected" : ""}>${t(category.id)}</option>`).join("")}</select></label>
+          <label>seccion<select name="section" data-section-select>${categories.map((category) => `<option value="${category.id}" ${category.id === value.section ? "selected" : ""}>${t(category.id)}</option>`).join("")}</select><small class="field-note">Puedes mover esta reseña a cualquier categoria antes de guardar.</small></label>
           <div class="two-cols">
             <label>nota<input name="score" value="${value.score}" /></label>
             <label>año<input name="year" value="${value.year}" /></label>
@@ -972,8 +1103,16 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
           <label>editorial<input name="publisher" value="${escapeAttr(value.publisher)}" /></label>
           <label>traduccion<input name="translator" value="${escapeAttr(value.translator)}" /></label>
           <label>paginas<input name="pages" value="${value.pages}" /></label>
-          <label>portada principal<input name="image" value="${value.image}" /></label>
-          <label>color cubierta<input name="tone" value="${value.tone}" /></label>
+          <label>portada principal<input name="image" value="${value.image}" data-cover-url /></label>
+          <label class="file-picker-label">subir portada PNG/JPG<input type="file" accept="image/png,image/jpeg" data-cover-file /></label>
+          <input type="hidden" name="tone" value="${value.tone}" />
+          <input type="hidden" name="coverFilter" value="${escapeAttr(value.coverFilter)}" data-cover-filter-value />
+          <div class="cover-filter-control">
+            <span>filtro portada</span>
+            <div class="cover-filter-grid" aria-label="Filtros para portada">
+              ${coverFilterPresets.map((filter) => `<button class="${filter.value === value.coverFilter ? "is-active" : ""}" type="button" data-cover-filter="${escapeAttr(filter.value)}">${filter.label}</button>`).join("")}
+            </div>
+          </div>
           <label>hoy / mañana<select name="slot">
             <option value="" ${!value.slot ? "selected" : ""}>sin destacar</option>
             <option value="hoy" ${value.slot === "hoy" ? "selected" : ""}>hoy</option>
@@ -989,14 +1128,18 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
   screen.querySelector("[data-manager-back]").addEventListener("click", () => renderManager("category", { category: value.section }));
   screen.querySelector("[data-save]").addEventListener("click", () => saveEditedReview());
   screen.querySelector("[data-delete]").addEventListener("click", () => {
-    deleteReview(item.id, false);
-    renderManager("category", { category: value.section });
+    renderManager("delete", {
+      reviewId: item.id,
+      category: value.section,
+      returnScreen: "editor",
+    });
   });
   screen.querySelector("[data-preview]").addEventListener("click", () => {
     const id = saveEditedReview(null, false);
     renderManager("preview", { reviewId: id, category: value.section });
   });
   bindManagerBlockControls(screen);
+  updateManagerNavState("editor");
 }
 
 function renderManagerPreview(reviewId) {
@@ -1036,6 +1179,59 @@ function renderManagerPreview(reviewId) {
   `;
   screen.querySelector("[data-manager-back]").addEventListener("click", () => renderManager("editor", { reviewId: item.id, category: item.section }));
   screen.querySelector("[data-manager-docs]").addEventListener("click", () => renderManager("category", { category: item.section }));
+}
+
+function renderManagerDeleteConfirm(reviewId, fallbackCategory = "textos", returnScreen = "dashboard") {
+  const item = reviews.find((review) => review.id === reviewId);
+  if (!item) return renderManager(returnScreen === "category" ? "category" : "dashboard", { category: fallbackCategory });
+  managerState = { screen: "delete", category: item.section || fallbackCategory, reviewId: item.id };
+  const screen = getManagerScreen();
+  screen.innerHTML = `
+    <section class="manager-delete-screen">
+      <div class="manager-subheader">
+        <button class="text-button" type="button" data-cancel-delete>← cancelar</button>
+        <div>
+          <span>CONFIRMAR ELIMINACION</span>
+          <h2>${item.title}</h2>
+        </div>
+        <button class="danger-button" type="button" data-confirm-delete disabled>ELIMINAR</button>
+      </div>
+      <div class="delete-confirm-card">
+        ${renderCover(item, "mini")}
+        <div>
+          <p>Esta accion elimina la reseña del panel editorial y de la web visible. Para confirmarlo, escribe el titulo exacto.</p>
+          <strong>${item.title}</strong>
+          <label>
+            titulo exacto
+            <input type="text" data-delete-title placeholder="${escapeAttr(item.title)}" autocomplete="off" />
+          </label>
+          <small data-delete-warning>El boton se activara cuando el titulo coincida.</small>
+        </div>
+      </div>
+    </section>
+  `;
+  const input = screen.querySelector("[data-delete-title]");
+  const confirm = screen.querySelector("[data-confirm-delete]");
+  const cancel = screen.querySelector("[data-cancel-delete]");
+  const warning = screen.querySelector("[data-delete-warning]");
+  const goBackToReturn = () => {
+    if (returnScreen === "editor") renderManager("editor", { reviewId: item.id, category: item.section });
+    else if (returnScreen === "category") renderManager("category", { category: item.section });
+    else renderManager("dashboard");
+  };
+  cancel.addEventListener("click", goBackToReturn);
+  input.addEventListener("input", () => {
+    const valid = input.value.trim() === item.title;
+    confirm.disabled = !valid;
+    warning.textContent = valid ? "Confirmacion correcta. Puedes eliminar la reseña." : "El boton se activara cuando el titulo coincida.";
+  });
+  confirm.addEventListener("click", () => {
+    if (input.value.trim() !== item.title) return;
+    deleteReview(item.id, false);
+    if (returnScreen === "category" || returnScreen === "editor") renderManager("category", { category: item.section });
+    else renderManager("dashboard");
+  });
+  input.focus();
 }
 
 function saveEditedReview(_editor, rerender = true) {

@@ -8,6 +8,9 @@ This folder prepares the project for moving all editorial content out of the sta
   - Creates the editorial schema.
   - Creates categories, cover filters, editorial pages, reviews and storage buckets.
   - Seeds the current local content: all textos, flash, escala, hoy/manana and no reviews.
+- `migrations/002_secure_manager_access.sql`
+  - Restricts all editorial writes to explicitly approved manager users.
+  - Replaces broad authenticated write policies with `public.manager_users` checks.
 - `seed/reviews.json`
   - JSON export generated from the current local seed content.
   - Useful for audits, scripts or import tooling.
@@ -22,6 +25,8 @@ This folder prepares the project for moving all editorial content out of the sta
   - Editable non-review pages, starting with the `YO` autobiography in Spanish and English.
 - `reviews`
   - Every essay/review with title, subtitle, summary, score, metadata, cover, filter, body blocks and images.
+- `manager_users`
+  - Auth users allowed to create, edit, delete and upload editorial content.
 
 ## Storage
 
@@ -38,12 +43,17 @@ Both buckets accept `image/png` and `image/jpeg`.
 
 1. Open the Supabase SQL editor.
 2. Paste and run `migrations/001_initial_schema_and_seed.sql`.
+3. Paste and run `migrations/002_secure_manager_access.sql`.
+4. Create the manager user in Supabase Auth.
+5. Insert the manager user into `public.manager_users`.
+6. Fill `supabase-config.js`.
 3. Confirm the resulting counts:
 
 ```sql
 select count(*) from public.categories;
 select count(*) from public.cover_filters;
 select count(*) from public.editorial_pages;
+select count(*) from public.manager_users;
 select count(*) from public.reviews;
 ```
 
@@ -52,6 +62,7 @@ Expected initial counts:
 - `categories`: 5
 - `cover_filters`: 20
 - `editorial_pages`: 1
+- `manager_users`: 1 after you add the manager user manually
 - `reviews`: 31
 
 ## Frontend migration notes
@@ -69,9 +80,17 @@ window.ACONTRANOVELA_SUPABASE = {
 Create a Supabase Auth user for the manager:
 
 - Email: the same value used in `managerEmail`.
-- Password: `LMF39`.
+- Password: choose the password the manager will type in the popup. For local fallback only, `LMF39` still opens the panel before Supabase is configured.
 
-The manager popup password is used to sign in with Supabase Auth. This keeps the anon key public while writes still use the authenticated RLS policies.
+After creating the Auth user, copy its `id` and run:
+
+```sql
+insert into public.manager_users (user_id, email)
+values ('AUTH_USER_ID_HERE', 'manager@example.com')
+on conflict (user_id) do update set email = excluded.email;
+```
+
+The manager popup password is used to sign in with Supabase Auth. This keeps the anon key public while writes still use the manager-only RLS policies.
 
 The app now uses:
 

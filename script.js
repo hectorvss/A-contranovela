@@ -1,4 +1,6 @@
 const STORAGE_KEY = "acontranovela.reviews.v1";
+const BIO_STORAGE_KEY = "acontranovela.bio.v1";
+const MANAGER_PASSWORD = "LMF39";
 const coverFilterPresets = [
   { label: "B/N limpio", value: "grayscale(1) contrast(1.05)" },
   { label: "B/N duro", value: "grayscale(1) contrast(1.45)" },
@@ -60,6 +62,21 @@ const categoryLabels = {
     next: "next →",
     languageButton: "ES",
     socialThere: "there",
+  },
+};
+
+const defaultBioContent = {
+  es: {
+    lead: "Este proyecto nace de una mania privada: leer como quien escucha una habitacion vacia. No busca ordenar el canon, sino registrar una temperatura. Lo que importa no es solo si un libro funciona, sino que tipo de ruido deja en la cabeza.",
+    one: "El manager de <strong>a contranovela</strong> escribe desde una idea sencilla: la critica no deberia sonar como una sentencia, sino como una forma de atencion. Cada texto intenta mirar el libro de cerca, sin convertirlo en mercancia de recomendacion rapida ni en monumento academico.",
+    two: "Aqui conviven reseñas largas, apuntes veloces, escalas semanales, entusiasmos provisionales y negativas razonadas. Hay libros que se aman, libros que se discuten y libros que se dejan caer con cuidado sobre la mesa para escuchar como suenan.",
+    quote: "Leer no para tener razon, sino para afinar la desconfianza.",
+  },
+  en: {
+    lead: "This project begins with a private obsession: reading as if listening to an empty room. It does not try to organize the canon, but to register a temperature.",
+    one: "The manager of <strong>a contranovela</strong> writes from a simple idea: criticism should not sound like a verdict, but like a form of attention.",
+    two: "Long reviews, quick notes, weekly scales, provisional enthusiasms and reasoned refusals coexist here. Some books are loved, some are argued with, and some are placed carefully on the table to hear how they sound.",
+    quote: "To read not in order to be right, but to sharpen distrust.",
   },
 };
 
@@ -202,7 +219,7 @@ els.homeButton.addEventListener("click", renderBio);
 els.noButton.addEventListener("click", () => renderCategory("no"));
 els.backButton.addEventListener("click", goBack);
 els.languageToggle.addEventListener("click", toggleLanguage);
-els.footerManager.addEventListener("click", renderManager);
+els.footerManager.addEventListener("click", requestManagerAccess);
 window.addEventListener("keydown", (event) => {
   if (event.target?.closest?.("input, textarea, select")) return;
   if (event.key.length !== 1) return;
@@ -217,7 +234,7 @@ window.addEventListener("keydown", (event) => {
   }, 1400);
   if (managerShortcutBuffer === "lmf") {
     managerShortcutBuffer = "";
-    renderManager();
+    requestManagerAccess();
   }
 });
 
@@ -232,6 +249,27 @@ function loadReviews() {
 
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(reviews));
+}
+
+function loadBioContent() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(BIO_STORAGE_KEY) || "{}");
+    return {
+      es: { ...defaultBioContent.es, ...(stored.es || {}) },
+      en: { ...defaultBioContent.en, ...(stored.en || {}) },
+    };
+  } catch {
+    return defaultBioContent;
+  }
+}
+
+function saveBioContent(nextBio) {
+  localStorage.setItem(BIO_STORAGE_KEY, JSON.stringify(nextBio));
+}
+
+function currentBio() {
+  const bio = loadBioContent();
+  return bio[currentLanguage] || bio.es;
 }
 
 function t(key) {
@@ -283,7 +321,8 @@ function renderHome() {
   document.documentElement.lang = currentLanguage;
   els.homeButton.textContent = t("yo");
   els.languageToggle.textContent = t("languageButton");
-  document.querySelector('.footer-links a[href="#"]').textContent = t("socialThere");
+  const thereLink = document.querySelector("#thereLink") || document.querySelector(".footer-links a:nth-of-type(3)");
+  if (thereLink) thereLink.textContent = t("socialThere");
   els.index.classList.remove("hidden");
   els.panel.classList.add("hidden");
   els.postView.classList.add("hidden");
@@ -309,22 +348,53 @@ function showPanel(label) {
   els.rightLabel.textContent = label;
 }
 
+function requestManagerAccess() {
+  closeManagerGate();
+  const gate = document.createElement("section");
+  gate.className = "manager-gate";
+  gate.setAttribute("role", "dialog");
+  gate.setAttribute("aria-modal", "true");
+  gate.innerHTML = `
+    <div class="manager-gate-card">
+      <button class="manager-gate-close" type="button" aria-label="Cerrar">×</button>
+      <span>PANEL EDITORIAL</span>
+      <h2>ACCESO</h2>
+      <p>Introduce la contraseña del manager para editar, crear o eliminar contenido.</p>
+      <input type="password" data-manager-password placeholder="CONTRASEÑA" autocomplete="current-password" />
+      <button class="submit-button" type="button" data-manager-unlock>ENTRAR</button>
+      <small data-manager-error></small>
+    </div>
+  `;
+  document.body.appendChild(gate);
+  const input = gate.querySelector("[data-manager-password]");
+  const error = gate.querySelector("[data-manager-error]");
+  const unlock = () => {
+    if (input.value === MANAGER_PASSWORD) {
+      closeManagerGate();
+      renderManager();
+      return;
+    }
+    error.textContent = "Contraseña incorrecta.";
+    input.value = "";
+    input.focus();
+  };
+  gate.querySelector("[data-manager-unlock]").addEventListener("click", unlock);
+  gate.querySelector(".manager-gate-close").addEventListener("click", closeManagerGate);
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") unlock();
+    if (event.key === "Escape") closeManagerGate();
+  });
+  input.focus();
+}
+
+function closeManagerGate() {
+  document.querySelector(".manager-gate")?.remove();
+}
+
 function renderBio() {
   state = { view: "bio", category: null, detail: null };
   showPanel(t("yo"));
-  const bio = currentLanguage === "es"
-    ? {
-        lead: "Este proyecto nace de una mania privada: leer como quien escucha una habitacion vacia. No busca ordenar el canon, sino registrar una temperatura. Lo que importa no es solo si un libro funciona, sino que tipo de ruido deja en la cabeza.",
-        one: "El manager de <strong>a contranovela</strong> escribe desde una idea sencilla: la critica no deberia sonar como una sentencia, sino como una forma de atencion. Cada texto intenta mirar el libro de cerca, sin convertirlo en mercancia de recomendacion rapida ni en monumento academico.",
-        two: "Aqui conviven reseñas largas, apuntes veloces, escalas semanales, entusiasmos provisionales y negativas razonadas. Hay libros que se aman, libros que se discuten y libros que se dejan caer con cuidado sobre la mesa para escuchar como suenan.",
-        quote: "Leer no para tener razon, sino para afinar la desconfianza.",
-      }
-    : {
-        lead: "This project begins with a private obsession: reading as if listening to an empty room. It does not try to organize the canon, but to register a temperature.",
-        one: "The manager of <strong>a contranovela</strong> writes from a simple idea: criticism should not sound like a verdict, but like a form of attention.",
-        two: "Long reviews, quick notes, weekly scales, provisional enthusiasms and reasoned refusals coexist here. Some books are loved, some are argued with, and some are placed carefully on the table to hear how they sound.",
-        quote: "To read not in order to be right, but to sharpen distrust.",
-      };
+  const bio = currentBio();
   els.postList.innerHTML = `
     <section class="bio-page">
       <h1>${t("yo")}</h1>
@@ -876,6 +946,7 @@ function renderManager(screen = "dashboard", options = {}) {
         <div class="manager-header-actions">
           <button class="manager-nav-button" type="button" data-manager-dashboard>INICIO</button>
           <button class="manager-nav-button" type="button" data-manager-new>NUEVA</button>
+          <button class="manager-nav-button" type="button" data-manager-bio>YO</button>
           <button class="text-button manager-shortcut" type="button" title="Atajo: pulsa L M F">LMF</button>
         </div>
       </header>
@@ -884,10 +955,12 @@ function renderManager(screen = "dashboard", options = {}) {
   `;
   els.managerForm.querySelector("[data-manager-dashboard]").addEventListener("click", () => renderManager("dashboard"));
   els.managerForm.querySelector("[data-manager-new]").addEventListener("click", () => renderManagerEditor(null, managerState.category || "textos"));
+  els.managerForm.querySelector("[data-manager-bio]").addEventListener("click", () => renderManager("bio"));
   if (screen === "category") renderManagerCategory(managerState.category);
   else if (screen === "editor") renderManagerEditor(managerState.reviewId, managerState.category);
   else if (screen === "preview") renderManagerPreview(managerState.reviewId);
   else if (screen === "delete") renderManagerDeleteConfirm(managerState.reviewId, managerState.category, options.returnScreen || "dashboard");
+  else if (screen === "bio") renderManagerBioEditor();
   else renderManagerDashboard();
   updateManagerNavState(screen);
 }
@@ -895,6 +968,7 @@ function renderManager(screen = "dashboard", options = {}) {
 function updateManagerNavState(screen) {
   els.managerForm.querySelector("[data-manager-dashboard]")?.classList.toggle("is-active", screen === "dashboard");
   els.managerForm.querySelector("[data-manager-new]")?.classList.toggle("is-active", screen === "editor" && !managerState.reviewId);
+  els.managerForm.querySelector("[data-manager-bio]")?.classList.toggle("is-active", screen === "bio");
 }
 
 function getManagerScreen() {
@@ -1232,6 +1306,46 @@ function renderManagerDeleteConfirm(reviewId, fallbackCategory = "textos", retur
     else renderManager("dashboard");
   });
   input.focus();
+}
+
+function renderManagerBioEditor() {
+  managerState = { screen: "bio", category: null, reviewId: null };
+  const bio = loadBioContent();
+  const screen = getManagerScreen();
+  screen.innerHTML = `
+    <section class="manager-bio-editor">
+      <div class="manager-subheader">
+        <button class="text-button" type="button" data-manager-back>← inicio</button>
+        <div>
+          <span>AUTOBIOGRAFIA</span>
+          <h2>YO</h2>
+        </div>
+        <button class="submit-button" type="button" data-save-bio>GUARDAR</button>
+      </div>
+      <div class="bio-editor-grid">
+        ${["es", "en"].map((lang) => `
+          <section class="bio-editor-panel">
+            <h3>${lang === "es" ? "ESPAÑOL" : "INGLES"}</h3>
+            <label>entradilla<textarea name="${lang}-lead" rows="5">${bio[lang].lead}</textarea></label>
+            <label>bloque uno<textarea name="${lang}-one" rows="6">${bio[lang].one}</textarea></label>
+            <label>bloque dos<textarea name="${lang}-two" rows="6">${bio[lang].two}</textarea></label>
+            <label>frase final<textarea name="${lang}-quote" rows="3">${bio[lang].quote}</textarea></label>
+          </section>
+        `).join("")}
+      </div>
+    </section>
+  `;
+  screen.querySelector("[data-manager-back]").addEventListener("click", () => renderManager("dashboard"));
+  screen.querySelector("[data-save-bio]").addEventListener("click", () => {
+    const nextBio = { es: {}, en: {} };
+    ["es", "en"].forEach((lang) => {
+      ["lead", "one", "two", "quote"].forEach((field) => {
+        nextBio[lang][field] = screen.querySelector(`[name="${lang}-${field}"]`).value.trim();
+      });
+    });
+    saveBioContent(nextBio);
+    renderManager("bio");
+  });
 }
 
 function saveEditedReview(_editor, rerender = true) {

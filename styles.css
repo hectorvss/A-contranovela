@@ -977,6 +977,321 @@ body.is-home .footer-links {
   font-weight: 900;
 }
 
+.manager-app {
+  max-width: 1480px;
+}
+
+.manager-app-header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+}
+
+.manager-screen {
+  min-height: 680px;
+}
+
+.manager-dashboard {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 260px 1fr;
+}
+
+.manager-overview {
+  background: #fffdfa;
+  border: 2px solid var(--ink);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 280px;
+  padding: 18px;
+}
+
+.manager-overview strong {
+  font-family: var(--mono);
+  font-size: clamp(72px, 10vw, 132px);
+  font-weight: 400;
+  line-height: 0.9;
+}
+
+.manager-overview span {
+  font-family: var(--sans);
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.manager-category-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.manager-library-map {
+  display: grid;
+  gap: 12px;
+  grid-column: 1 / -1;
+}
+
+.manager-category-card {
+  background: #fffdfa;
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  display: grid;
+  min-height: 190px;
+  padding: 18px;
+  text-align: left;
+  transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.manager-category-card:hover {
+  background: #d8d6d0;
+  transform: translateY(-2px);
+}
+
+.manager-category-card span {
+  font-family: var(--heavy);
+  font-size: clamp(38px, 5vw, 72px);
+  line-height: 0.86;
+  text-transform: uppercase;
+}
+
+.manager-category-card strong {
+  align-self: end;
+  font-family: var(--mono);
+  font-size: 46px;
+  font-weight: 400;
+}
+
+.manager-category-card small {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-weight: 900;
+}
+
+.manager-lane {
+  background: #fffdfa;
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 0;
+}
+
+.manager-lane header,
+.manager-lane-item {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.manager-lane header {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+}
+
+.manager-lane header button {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--heavy);
+  font-size: 36px;
+  line-height: 0.9;
+  padding: 0;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.manager-lane header span {
+  font-family: var(--mono);
+  font-size: 28px;
+}
+
+.manager-lane-items {
+  display: grid;
+}
+
+.manager-lane-item {
+  border-bottom: 1px solid var(--line);
+  padding: 12px 14px;
+}
+
+.manager-lane-item:last-child {
+  border-bottom: 0;
+}
+
+.manager-lane-item strong,
+.manager-lane-item small {
+  display: block;
+}
+
+.manager-lane-item strong {
+  font-family: var(--sans);
+  font-size: 17px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.manager-lane-item small {
+  font-family: var(--mono);
+  margin-top: 3px;
+}
+
+.manager-lane-item > div:last-child {
+  display: flex;
+  gap: 8px;
+}
+
+.manager-lane-item button {
+  background: transparent;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.manager-lane-item button:hover,
+.manager-lane header button:hover {
+  color: var(--hover-gray);
+}
+
+.manager-lane-items p {
+  font-family: var(--mono);
+  margin: 0;
+  padding: 14px;
+}
+
+.manager-subheader {
+  align-items: end;
+  border-bottom: 1px solid var(--line);
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 150px 1fr auto;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+}
+
+.manager-subheader span {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  font-weight: 950;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.manager-subheader h2 {
+  font-family: var(--heavy);
+  font-size: clamp(42px, 7vw, 92px);
+  line-height: 0.86;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.manager-subheader-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.manager-document-toolbar {
+  align-items: center;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 16px;
+}
+
+.manager-document-toolbar input {
+  background: #fffdfa;
+  border: 1px solid var(--ink);
+  min-height: 42px;
+  padding: 0 12px;
+}
+
+.manager-document-toolbar span {
+  font-family: var(--mono);
+}
+
+.manager-document-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.manager-document-card {
+  align-items: center;
+  background: #fffdfa;
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 78px minmax(0, 1fr) auto;
+  padding: 12px;
+}
+
+.manager-document-card .book-cover {
+  width: 78px;
+}
+
+.manager-document-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.manager-document-copy strong {
+  font-family: var(--sans);
+  font-size: 20px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.manager-document-copy span,
+.manager-document-copy small {
+  font-family: var(--mono);
+}
+
+.manager-card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.manager-card-actions button {
+  background: transparent;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 900;
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.manager-card-actions button:hover,
+.compose-toolbar button:hover,
+.block-actions button:hover {
+  border-color: var(--hover-gray);
+  color: var(--hover-gray);
+}
+
+.manager-editor-shell {
+  display: grid;
+}
+
+.manager-preview-screen {
+  margin: 0 auto;
+  max-width: 980px;
+}
+
+.manager-original-preview {
+  background: #fffdfa;
+  border: 1px solid var(--line);
+  padding: clamp(24px, 4vw, 52px);
+}
+
+.manager-empty {
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  margin: 0;
+  padding: 28px;
+}
+
 @media (max-width: 760px) {
   .page {
     padding: 26px 24px 86px;
@@ -1031,8 +1346,33 @@ body.is-home .footer-links {
   }
 
   .card-row {
-    grid-template-columns: 82px minmax(0, 1fr) 48px;
+    grid-template-columns: 92px minmax(0, 1fr) 52px;
     gap: 16px;
+  }
+
+  .card-row .book-cover {
+    aspect-ratio: 0.72;
+    min-height: 128px;
+    padding: 10px 9px 8px;
+    width: 92px;
+  }
+
+  .card-row .book-cover .cover-author {
+    font-size: 11px;
+    line-height: 1.05;
+  }
+
+  .card-row .book-cover strong {
+    font-size: 12px;
+    line-height: 1.05;
+  }
+
+  .card-row .book-cover img {
+    height: 34%;
+  }
+
+  .card-row .book-cover small {
+    font-size: 7px;
   }
 
   .rank-row {
@@ -1058,6 +1398,7 @@ body.is-home .footer-links {
   .card-row .score {
     align-self: end;
     grid-column: 3;
+    justify-self: start;
     text-align: right;
   }
 
@@ -1068,12 +1409,37 @@ body.is-home .footer-links {
     grid-template-columns: 1fr;
   }
 
+  .manager-dashboard,
+  .manager-category-grid,
+  .manager-subheader,
+  .manager-document-toolbar,
+  .manager-document-card,
+  .manager-lane header,
+  .manager-lane-item {
+    grid-template-columns: 1fr;
+  }
+
+  .manager-screen {
+    min-height: 0;
+  }
+
+  .manager-overview {
+    min-height: 160px;
+  }
+
+  .manager-category-card {
+    min-height: 150px;
+  }
+
   .manager-header {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .manager-header-actions {
+  .manager-header-actions,
+  .manager-card-actions,
+  .manager-subheader-actions,
+  .manager-lane-item > div:last-child {
     flex-wrap: wrap;
   }
 
@@ -1093,6 +1459,10 @@ body.is-home .footer-links {
 
   .image-block {
     grid-template-columns: 86px 1fr;
+  }
+
+  .manager-document-card .book-cover {
+    width: 86px;
   }
 
   .detail-title {
@@ -1132,14 +1502,33 @@ body.is-home .footer-links {
 
 @media (max-width: 460px) {
   .card-row {
-    grid-template-columns: 68px minmax(0, 1fr) 44px;
+    grid-template-columns: 82px minmax(0, 1fr) 46px;
     gap: 12px;
+  }
+
+  .card-row .book-cover {
+    min-height: 114px;
+    width: 82px;
+  }
+
+  .card-row .book-cover .cover-author {
+    font-size: 10px;
+  }
+
+  .card-row .book-cover strong {
+    font-size: 11px;
+  }
+
+  .card-row .book-cover img {
+    height: 32%;
   }
 
   .card-row .score {
     align-self: end;
     grid-column: 3;
-    text-align: right;
+    justify-self: start;
+    text-align: left;
+    transform: translateX(-2px);
   }
 
   .rank-row {

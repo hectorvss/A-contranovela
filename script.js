@@ -168,6 +168,7 @@ const els = {
 let reviews = loadReviews();
 let state = { view: "home", category: null, detail: null };
 let currentLanguage = localStorage.getItem("acontranovela.language") || "es";
+let managerState = { screen: "dashboard", category: null, reviewId: null };
 
 renderHome();
 initCustomCursor();
@@ -736,4 +737,326 @@ function initCustomCursor() {
   });
 
   move();
+}
+
+function renderManager(screen = "dashboard", options = {}) {
+  state = { view: "manager", category: null, detail: null };
+  managerState = {
+    screen,
+    category: options.category || managerState.category || "textos",
+    reviewId: options.reviewId || managerState.reviewId || null,
+  };
+  showPanel("MANAGER");
+  els.postList.classList.add("hidden");
+  els.postView.classList.add("hidden");
+  els.managerForm.classList.remove("hidden");
+  els.managerForm.innerHTML = `
+    <section class="manager-shell manager-app">
+      <header class="manager-header manager-app-header">
+        <div>
+          <span class="manager-kicker">PANEL EDITORIAL</span>
+          <h1>MANAGER</h1>
+          <p>Elige una seccion, administra documentos y edita cada reseña por bloques.</p>
+        </div>
+        <div class="manager-header-actions">
+          <button class="submit-button" type="button" data-manager-dashboard>INICIO</button>
+          <button class="text-button manager-shortcut" type="button" data-manager-new>NUEVA</button>
+          <button class="text-button manager-shortcut" type="button" title="Atajo: Alt + M">ALT + M</button>
+        </div>
+      </header>
+      <div class="manager-screen" id="managerScreen"></div>
+    </section>
+  `;
+  els.managerForm.querySelector("[data-manager-dashboard]").addEventListener("click", () => renderManager("dashboard"));
+  els.managerForm.querySelector("[data-manager-new]").addEventListener("click", () => renderManagerEditor(null, managerState.category || "textos"));
+  if (screen === "category") renderManagerCategory(managerState.category);
+  else if (screen === "editor") renderManagerEditor(managerState.reviewId, managerState.category);
+  else if (screen === "preview") renderManagerPreview(managerState.reviewId);
+  else renderManagerDashboard();
+}
+
+function getManagerScreen() {
+  return document.querySelector("#managerScreen");
+}
+
+function renderManagerDashboard() {
+  managerState = { screen: "dashboard", category: null, reviewId: null };
+  const total = reviews.length;
+  getManagerScreen().innerHTML = `
+    <section class="manager-dashboard">
+      <div class="manager-overview">
+        <strong>${total}</strong>
+        <span>reseñas publicadas</span>
+      </div>
+      <div class="manager-category-grid">
+        ${categories.map(renderManagerCategoryCard).join("")}
+      </div>
+      <div class="manager-library-map">
+        ${categories.map(renderManagerCategoryLane).join("")}
+      </div>
+    </section>
+  `;
+  getManagerScreen().querySelectorAll("[data-manager-category]").forEach((button) => {
+    button.addEventListener("click", () => renderManager("category", { category: button.dataset.managerCategory }));
+  });
+  getManagerScreen().querySelectorAll("[data-dashboard-edit]").forEach((button) => {
+    button.addEventListener("click", () => renderManagerEditor(button.dataset.dashboardEdit, button.dataset.category));
+  });
+  getManagerScreen().querySelectorAll("[data-dashboard-preview]").forEach((button) => {
+    button.addEventListener("click", () => renderManager("preview", { reviewId: button.dataset.dashboardPreview, category: button.dataset.category }));
+  });
+}
+
+function renderManagerCategoryCard(category) {
+  const items = reviews.filter((item) => item.section === category.id);
+  const latest = items[0];
+  return `
+    <button class="manager-category-card" type="button" data-manager-category="${category.id}">
+      <span>${t(category.id)}</span>
+      <strong>${String(items.length).padStart(2, "0")}</strong>
+      <small>${latest ? `${latest.title} · ${latest.author}` : "sin documentos"}</small>
+    </button>
+  `;
+}
+
+function renderManagerCategoryLane(category) {
+  const items = reviews.filter((item) => item.section === category.id);
+  return `
+    <article class="manager-lane">
+      <header>
+        <button type="button" data-manager-category="${category.id}">${t(category.id)}</button>
+        <span>${String(items.length).padStart(2, "0")}</span>
+      </header>
+      <div class="manager-lane-items">
+        ${
+          items
+            .map(
+              (item) => `
+                <div class="manager-lane-item">
+                  <div>
+                    <strong>${item.title}</strong>
+                    <small>${item.author} / ${item.score}</small>
+                  </div>
+                  <div>
+                    <button type="button" data-dashboard-edit="${item.id}" data-category="${category.id}">editar</button>
+                    <button type="button" data-dashboard-preview="${item.id}" data-category="${category.id}">preview</button>
+                  </div>
+                </div>
+              `
+            )
+            .join("") || `<p>Sin documentos todavia.</p>`
+        }
+      </div>
+    </article>
+  `;
+}
+
+function renderManagerCategory(categoryId) {
+  managerState = { screen: "category", category: categoryId, reviewId: null };
+  const category = categories.find((item) => item.id === categoryId) || categories[0];
+  const items = reviews.filter((item) => item.section === category.id);
+  const screen = getManagerScreen();
+  screen.innerHTML = `
+    <section class="manager-documents">
+      <div class="manager-subheader">
+        <button class="text-button" type="button" data-manager-back>← secciones</button>
+        <div>
+          <span>SECCION</span>
+          <h2>${t(category.id)}</h2>
+        </div>
+        <button class="submit-button" type="button" data-manager-create>CREAR RESEÑA</button>
+      </div>
+      <div class="manager-document-toolbar">
+        <input type="search" placeholder="Buscar en ${t(category.id)}" data-search />
+        <span>${items.length} documentos</span>
+      </div>
+      <div class="manager-document-grid">
+        ${items.map(renderManagerDocumentCard).join("") || `<p class="manager-empty">Todavia no hay reseñas en esta seccion.</p>`}
+      </div>
+    </section>
+  `;
+  screen.querySelector("[data-manager-back]").addEventListener("click", () => renderManager("dashboard"));
+  screen.querySelector("[data-manager-create]").addEventListener("click", () => renderManagerEditor(null, category.id));
+  screen.querySelector("[data-search]").addEventListener("input", filterManagerLibrary);
+  screen.querySelectorAll("[data-edit]").forEach((button) => {
+    button.addEventListener("click", () => renderManagerEditor(button.dataset.edit, category.id));
+  });
+  screen.querySelectorAll("[data-preview]").forEach((button) => {
+    button.addEventListener("click", () => renderManager("preview", { reviewId: button.dataset.preview, category: category.id }));
+  });
+  screen.querySelectorAll("[data-delete]").forEach((button) => {
+    button.addEventListener("click", () => {
+      deleteReview(button.dataset.delete, false);
+      renderManager("category", { category: category.id });
+    });
+  });
+}
+
+function renderManagerDocumentCard(item) {
+  return `
+    <article class="manager-document-card" data-search-item="${`${item.title} ${item.author} ${item.summary}`.toLowerCase()}">
+      ${renderCover(item, "mini")}
+      <div class="manager-document-copy">
+        <strong>${item.title}</strong>
+        <span>${item.author}</span>
+        <small>${categoryLabel(item.section)} · ${item.score} · ${item.body?.length || 0} bloques</small>
+      </div>
+      <div class="manager-card-actions">
+        <button type="button" data-edit="${item.id}">editar</button>
+        <button type="button" data-preview="${item.id}">preview</button>
+        <button type="button" data-delete="${item.id}">eliminar</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
+  const item = reviews.find((review) => review.id === reviewId) || {};
+  const categoryId = item.section || fallbackCategory || "textos";
+  managerState = { screen: "editor", category: categoryId, reviewId: item.id || null };
+  const bodyBlocks = item.body && item.body.length ? item.body : [""];
+  const images = Array.isArray(item.images) && item.images.length ? item.images : [item.image || "https://picsum.photos/id/1005/420/560"];
+  const value = {
+    section: categoryId,
+    author: item.author || "",
+    title: item.title || "",
+    summary: item.summary || "",
+    score: item.score || "8.0",
+    publisher: item.publisher || "",
+    year: item.year || "2026",
+    translator: item.translator || "-",
+    pages: item.pages || "",
+    image: item.image || images[0] || "https://picsum.photos/id/1005/420/560",
+    tone: item.tone || "#efe7d8",
+    slot: item.slot || "",
+  };
+  const screen = getManagerScreen();
+  screen.innerHTML = `
+    <input type="hidden" name="id" value="${item.id || ""}" />
+    <section class="manager-editor-shell">
+      <div class="manager-subheader">
+        <button class="text-button" type="button" data-manager-back>← documentos</button>
+        <div>
+          <span>${item.id ? "EDITANDO" : "NUEVA RESEÑA"}</span>
+          <h2>${value.title || "Sin titulo"}</h2>
+        </div>
+        <div class="manager-subheader-actions">
+          <button class="text-button" type="button" data-preview>PREVIEW</button>
+          <button class="submit-button" type="button" data-save>GUARDAR</button>
+        </div>
+      </div>
+      <section class="manager-compose">
+        <div class="compose-main">
+          <input class="compose-title" name="title" value="${escapeAttr(value.title)}" required placeholder="Titulo de la reseña" />
+          <input class="compose-author" name="author" value="${escapeAttr(value.author)}" required placeholder="Autor / autora" />
+          <textarea class="compose-summary" name="summary" rows="3" placeholder="Entradilla para la lista">${value.summary}</textarea>
+          <div class="compose-toolbar">
+            <button type="button" data-add-block>+ BLOQUE TEXTO</button>
+            <button type="button" data-add-image>+ FOTO</button>
+          </div>
+          <div class="block-stack" data-blocks>
+            ${bodyBlocks.map((paragraph) => renderTextBlock(paragraph)).join("")}
+          </div>
+          <div class="image-stack" data-images>
+            <h3>FOTOS DEL ARTICULO</h3>
+            ${images.map((image) => renderImageBlock(image)).join("")}
+          </div>
+        </div>
+        <aside class="compose-side">
+          <div class="cover-preview-large">${renderCover({ ...value, publisher: value.publisher || "editorial" }, "small")}</div>
+          <label>seccion<select name="section">${categories.map((category) => `<option value="${category.id}" ${category.id === value.section ? "selected" : ""}>${t(category.id)}</option>`).join("")}</select></label>
+          <div class="two-cols">
+            <label>nota<input name="score" value="${value.score}" /></label>
+            <label>año<input name="year" value="${value.year}" /></label>
+          </div>
+          <label>editorial<input name="publisher" value="${escapeAttr(value.publisher)}" /></label>
+          <label>traduccion<input name="translator" value="${escapeAttr(value.translator)}" /></label>
+          <label>paginas<input name="pages" value="${value.pages}" /></label>
+          <label>portada principal<input name="image" value="${value.image}" /></label>
+          <label>color cubierta<input name="tone" value="${value.tone}" /></label>
+          <label>hoy / mañana<select name="slot">
+            <option value="" ${!value.slot ? "selected" : ""}>sin destacar</option>
+            <option value="hoy" ${value.slot === "hoy" ? "selected" : ""}>hoy</option>
+            <option value="mañana" ${value.slot === "mañana" ? "selected" : ""}>mañana</option>
+          </select></label>
+          <div class="manager-actions">
+            <button class="danger-button" type="button" data-delete ${item.id ? "" : "disabled"}>ELIMINAR</button>
+          </div>
+        </aside>
+      </section>
+    </section>
+  `;
+  screen.querySelector("[data-manager-back]").addEventListener("click", () => renderManager("category", { category: value.section }));
+  screen.querySelector("[data-save]").addEventListener("click", () => saveEditedReview());
+  screen.querySelector("[data-delete]").addEventListener("click", () => {
+    deleteReview(item.id, false);
+    renderManager("category", { category: value.section });
+  });
+  screen.querySelector("[data-preview]").addEventListener("click", () => {
+    const id = saveEditedReview(null, false);
+    renderManager("preview", { reviewId: id, category: value.section });
+  });
+  bindManagerBlockControls(screen);
+}
+
+function renderManagerPreview(reviewId) {
+  const item = reviews.find((review) => review.id === reviewId);
+  if (!item) return renderManager("dashboard");
+  managerState = { screen: "preview", category: item.section, reviewId: item.id };
+  const screen = getManagerScreen();
+  screen.innerHTML = `
+    <section class="manager-preview-screen">
+      <div class="manager-subheader">
+        <button class="text-button" type="button" data-manager-back>← editor</button>
+        <div>
+          <span>PREVIEW</span>
+          <h2>${item.title}</h2>
+        </div>
+        <button class="submit-button" type="button" data-manager-docs>DOCUMENTOS</button>
+      </div>
+      <article class="manager-original-preview">
+        <header class="detail-hero">
+          ${renderCover(item, "large")}
+          <div class="detail-title">
+            <h1>${item.title}</h1>
+            <h2>${item.author}</h2>
+            <span class="title-line"></span>
+            <strong class="detail-score">${item.score}</strong>
+          </div>
+        </header>
+        <dl class="book-meta">
+          <div><dt>EDITORIAL:</dt><dd>${item.publisher}</dd></div>
+          <div><dt>AÑO:</dt><dd>${item.year}</dd></div>
+          <div><dt>TRADUCCION:</dt><dd>${item.translator}</dd></div>
+          <div><dt>PAGINAS:</dt><dd>${item.pages}</dd></div>
+        </dl>
+        <div class="detail-body">${renderArticleBlocks(item)}</div>
+      </article>
+    </section>
+  `;
+  screen.querySelector("[data-manager-back]").addEventListener("click", () => renderManager("editor", { reviewId: item.id, category: item.section }));
+  screen.querySelector("[data-manager-docs]").addEventListener("click", () => renderManager("category", { category: item.section }));
+}
+
+function saveEditedReview(_editor, rerender = true) {
+  const formData = new FormData(els.managerForm);
+  const next = Object.fromEntries(formData.entries());
+  next.id = next.id || `${next.section}-${slug(next.author)}-${slug(next.title)}-${Date.now()}`;
+  next.slot = next.section === "hoy-manana" ? next.slot || "hoy" : next.slot || "";
+  next.body = formData.getAll("bodyBlock").map((paragraph) => paragraph.trim()).filter(Boolean);
+  next.images = formData.getAll("articleImage").map((image) => image.trim()).filter(Boolean);
+  if (!next.body.length) next.body = ["Nueva reseña pendiente de escritura."];
+  const index = reviews.findIndex((item) => item.id === next.id);
+  if (index >= 0) reviews[index] = next;
+  else reviews.unshift(next);
+  persist();
+  if (rerender) renderManager("editor", { reviewId: next.id, category: next.section });
+  return next.id;
+}
+
+function deleteReview(id, rerender = true) {
+  if (!id) return;
+  reviews = reviews.filter((item) => item.id !== id);
+  persist();
+  if (rerender) renderManager("dashboard");
 }

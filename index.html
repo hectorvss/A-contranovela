@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>a contranovela</title>
+    <link rel="stylesheet" href="styles.css?v=20260614-1047" />
+  </head>
+  <body>
+    <main class="page" id="inicio">
+      <nav class="index" aria-label="Inicio">
+        <div class="home-top">
+          <button class="circle-button circle-outline" type="button" id="homeButton">YO</button>
+          <span class="site-name">a contranovela</span>
+          <button class="circle-button circle-solid" type="button" id="noButton">NO</button>
+        </div>
+
+        <div class="menu" id="menu"></div>
+      </nav>
+
+      <section class="panel hidden" id="panel" aria-live="polite">
+        <div class="panel-top">
+          <button class="text-button back-pill" id="backButton" type="button" aria-label="Volver">
+            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+              <path d="M15 4 7 12l8 8" />
+            </svg>
+          </button>
+          <span id="crumb">a contranovela</span>
+          <button class="pill manager-trigger" id="managerButton" type="button">TEXTOS</button>
+        </div>
+
+        <div class="post-list" id="postList"></div>
+        <article class="post-view hidden" id="postView"></article>
+
+        <form class="manager-form hidden" id="managerForm"></form>
+      </section>
+    </main>
+
+    <footer class="footer-links">
+      <a href="https://www.instagram.com/" target="_blank" rel="noreferrer">instagram</a>
+      <span>·</span>
+      <a href="https://www.facebook.com/" target="_blank" rel="noreferrer">facebook</a>
+      <span>·</span>
+      <a href="#" rel="noreferrer">allí</a>
+      <button id="footerManager" type="button">manager</button>
+    </footer>
+
+    <script src="script.js?v=20260614-1047"></script>
+  </body>
+</html>

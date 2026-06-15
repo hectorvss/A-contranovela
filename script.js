@@ -498,9 +498,15 @@ function normalizeBioLanguage(defaults, source = {}) {
   const blocks = Array.isArray(source.blocks) && source.blocks.length
     ? source.blocks
     : [source.one, source.two].filter(Boolean);
+  const imagePositionX = Number.isFinite(Number(source.imagePositionX)) ? Number(source.imagePositionX) : 50;
+  const imagePositionY = Number.isFinite(Number(source.imagePositionY)) ? Number(source.imagePositionY) : 50;
+  const imageScale = Number.isFinite(Number(source.imageScale)) ? Number(source.imageScale) : 100;
   return {
     lead: source.lead || defaults.lead,
     image: source.image || source.photo || defaults.image || "",
+    imagePositionX,
+    imagePositionY,
+    imageScale,
     blocks: blocks.length ? blocks : [...defaults.blocks],
     quote: source.quote || defaults.quote,
   };
@@ -529,6 +535,13 @@ function saveBioContent(nextBio) {
 function currentBio() {
   const bio = loadBioContent();
   return bio[currentLanguage] || bio.es;
+}
+
+function bioImageInlineStyle(bio) {
+  const posX = Number.isFinite(Number(bio?.imagePositionX)) ? Number(bio.imagePositionX) : 50;
+  const posY = Number.isFinite(Number(bio?.imagePositionY)) ? Number(bio.imagePositionY) : 50;
+  const scale = Number.isFinite(Number(bio?.imageScale)) ? Number(bio.imageScale) : 100;
+  return `object-position:${posX}% ${posY}%;transform:scale(${scale / 100});`;
 }
 
 function t(key) {
@@ -673,14 +686,14 @@ function renderBio() {
   showPanel(t("yo"));
   const bio = currentBio();
   const imageMarkup = bio.image
-    ? `<figure class="bio-square"><img src="${bio.image}" alt="${escapeAttr(t("yo"))}" loading="lazy" /></figure>`
+    ? `<figure class="bio-square"><img src="${bio.image}" alt="${escapeAttr(t("yo"))}" loading="lazy" style="${bioImageInlineStyle(bio)}" /></figure>`
     : "";
   els.postList.innerHTML = `
     <section class="bio-page">
       <h1>${t("yo")}</h1>
       <div class="bio-story ${bio.image ? "has-image" : "no-image"}">
-        ${imageMarkup}
         <div class="bio-copy">
+          ${imageMarkup}
           <p class="bio-lead">${bio.lead}</p>
           ${bio.blocks.map((block) => `<p>${block}</p>`).join("")}
         </div>
@@ -946,6 +959,13 @@ function clearBlockTargets(root) {
   root.querySelectorAll(".is-drop-target").forEach((block) => block.classList.remove("is-drop-target"));
 }
 
+function placeDraggedBlock(target, draggedBlock, clientY) {
+  if (!target || !draggedBlock || target === draggedBlock || draggedBlock.parentElement !== target.parentElement) return;
+  const rect = target.getBoundingClientRect();
+  const after = clientY > rect.top + rect.height / 2;
+  target.parentElement.insertBefore(draggedBlock, after ? target.nextElementSibling : target);
+}
+
 function bindSortableBlocks(root, selector = ".manager-block") {
   let pointerDrag = null;
   const blocks = root.querySelectorAll(selector);
@@ -964,30 +984,51 @@ function bindSortableBlocks(root, selector = ".manager-block") {
       clearBlockTargets(root);
     };
     handle.onpointerdown = (event) => {
-      pointerDrag = { block, parent: block.parentElement, pointerId: event.pointerId };
-      block.classList.add("is-dragging");
+      pointerDrag = {
+        block,
+        parent: block.parentElement,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        dragging: false,
+      };
       handle.setPointerCapture?.(event.pointerId);
       event.preventDefault();
     };
     handle.onpointermove = (event) => {
       if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
       event.preventDefault();
+      if (!pointerDrag.dragging) {
+        const movedX = Math.abs(event.clientX - pointerDrag.startX);
+        const movedY = Math.abs(event.clientY - pointerDrag.startY);
+        if (Math.max(movedX, movedY) < 8) return;
+        pointerDrag.dragging = true;
+        managerDraggedBlock = pointerDrag.block;
+        pointerDrag.block.classList.add("is-dragging");
+      }
       const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(selector);
-      if (!target || target === pointerDrag.block || target.parentElement !== pointerDrag.parent) return;
+      if (!target || target.parentElement !== pointerDrag.parent) return;
       clearBlockTargets(root);
+      if (target === pointerDrag.block) return;
       target.classList.add("is-drop-target");
-      const rect = target.getBoundingClientRect();
-      const after = event.clientY > rect.top + rect.height / 2;
-      pointerDrag.parent.insertBefore(pointerDrag.block, after ? target.nextElementSibling : target);
+      placeDraggedBlock(target, pointerDrag.block, event.clientY);
     };
     const finishPointerDrag = (event) => {
       if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
       pointerDrag.block.classList.remove("is-dragging");
+      managerDraggedBlock = null;
       pointerDrag = null;
       clearBlockTargets(root);
     };
     handle.onpointerup = finishPointerDrag;
     handle.onpointercancel = finishPointerDrag;
+    handle.onlostpointercapture = () => {
+      if (!pointerDrag) return;
+      pointerDrag.block.classList.remove("is-dragging");
+      managerDraggedBlock = null;
+      pointerDrag = null;
+      clearBlockTargets(root);
+    };
   });
   blocks.forEach((block) => {
     block.ondragover = (event) => {
@@ -1000,10 +1041,7 @@ function bindSortableBlocks(root, selector = ".manager-block") {
     block.ondrop = (event) => {
       event.preventDefault();
       block.classList.remove("is-drop-target");
-      if (!managerDraggedBlock || managerDraggedBlock === block || managerDraggedBlock.parentElement !== block.parentElement) return;
-      const rect = block.getBoundingClientRect();
-      const after = event.clientY > rect.top + rect.height / 2;
-      block.parentElement.insertBefore(managerDraggedBlock, after ? block.nextElementSibling : block);
+      placeDraggedBlock(block, managerDraggedBlock, event.clientY);
     };
   });
 }
@@ -1106,12 +1144,11 @@ function bindBioBlockControls(screen) {
   screen.querySelectorAll("[name$='-image']").forEach((input) => {
     input.oninput = () => {
       const lang = input.name.replace("-image", "");
-      const preview = screen.querySelector(`[data-bio-preview="${lang}"]`);
-      if (!preview) return;
-      preview.innerHTML = input.value.trim()
-        ? `<img src="${input.value.trim()}" alt="" loading="lazy" />`
-        : `<span>foto</span>`;
+      updateBioPreview(screen, lang);
     };
+  });
+  screen.querySelectorAll("[data-bio-image-control]").forEach((input) => {
+    input.oninput = () => updateBioPreview(screen, input.dataset.bioImageControl);
   });
 }
 
@@ -1123,6 +1160,24 @@ function readImageFile(file, callback) {
   const reader = new FileReader();
   reader.onload = () => callback(String(reader.result || ""));
   reader.readAsDataURL(file);
+}
+
+function getBioPreviewState(screen, lang) {
+  return {
+    image: screen.querySelector(`[name="${lang}-image"]`)?.value.trim() || "",
+    imagePositionX: Number(screen.querySelector(`[name="${lang}-image-position-x"]`)?.value || 50),
+    imagePositionY: Number(screen.querySelector(`[name="${lang}-image-position-y"]`)?.value || 50),
+    imageScale: Number(screen.querySelector(`[name="${lang}-image-scale"]`)?.value || 100),
+  };
+}
+
+function updateBioPreview(screen, lang) {
+  const preview = screen.querySelector(`[data-bio-preview="${lang}"]`);
+  if (!preview) return;
+  const bioState = getBioPreviewState(screen, lang);
+  preview.innerHTML = bioState.image
+    ? `<img src="${bioState.image}" alt="" loading="lazy" style="${bioImageInlineStyle(bioState)}" />`
+    : `<span>foto</span>`;
 }
 
 
@@ -1584,11 +1639,16 @@ function renderManagerBioEditor() {
             <h3>${lang === "es" ? "ESPAÑOL" : "INGLÉS"}</h3>
             <div class="bio-image-editor">
               <div class="bio-image-preview" data-bio-preview="${lang}">
-                ${bio[lang].image ? `<img src="${bio[lang].image}" alt="" loading="lazy" />` : `<span>foto</span>`}
+                ${bio[lang].image ? `<img src="${bio[lang].image}" alt="" loading="lazy" style="${bioImageInlineStyle(bio[lang])}" />` : `<span>foto</span>`}
               </div>
               <div class="bio-image-fields">
                 <label>imagen cuadrada<input name="${lang}-image" value="${escapeAttr(bio[lang].image)}" placeholder="URL de imagen" /></label>
                 <label class="file-picker-label">subir imagen PNG/JPG<input type="file" accept="image/png,image/jpeg" data-bio-image-file="${lang}" /></label>
+                <div class="bio-frame-controls">
+                  <label>encuadre horizontal<input type="range" min="0" max="100" step="1" name="${lang}-image-position-x" value="${bio[lang].imagePositionX}" data-bio-image-control="${lang}" /></label>
+                  <label>encuadre vertical<input type="range" min="0" max="100" step="1" name="${lang}-image-position-y" value="${bio[lang].imagePositionY}" data-bio-image-control="${lang}" /></label>
+                  <label>zoom dentro del marco<input type="range" min="100" max="170" step="1" name="${lang}-image-scale" value="${bio[lang].imageScale}" data-bio-image-control="${lang}" /></label>
+                </div>
               </div>
             </div>
             <label>entradilla<textarea name="${lang}-lead" rows="5">${bio[lang].lead}</textarea></label>
@@ -1614,6 +1674,9 @@ function renderManagerBioEditor() {
       nextBio[lang] = {
         lead: screen.querySelector(`[name="${lang}-lead"]`).value.trim(),
         image: screen.querySelector(`[name="${lang}-image"]`).value.trim(),
+        imagePositionX: Number(screen.querySelector(`[name="${lang}-image-position-x"]`)?.value || 50),
+        imagePositionY: Number(screen.querySelector(`[name="${lang}-image-position-y"]`)?.value || 50),
+        imageScale: Number(screen.querySelector(`[name="${lang}-image-scale"]`)?.value || 100),
         blocks: Array.from(screen.querySelectorAll(`[name="${lang}-bio-block"]`))
           .map((field) => field.value.trim())
           .filter(Boolean),

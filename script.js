@@ -541,7 +541,10 @@ function bioImageInlineStyle(bio) {
   const posX = Number.isFinite(Number(bio?.imagePositionX)) ? Number(bio.imagePositionX) : 50;
   const posY = Number.isFinite(Number(bio?.imagePositionY)) ? Number(bio.imagePositionY) : 50;
   const scale = Number.isFinite(Number(bio?.imageScale)) ? Number(bio.imageScale) : 100;
-  return `object-position:${posX}% ${posY}%;transform:scale(${scale / 100});`;
+  const offsetX = ((posX - 50) / 50) * 22;
+  const offsetY = ((posY - 50) / 50) * 22;
+  const effectiveScale = Math.max(1.12, scale / 100);
+  return `--bio-offset-x:${offsetX.toFixed(2)}px;--bio-offset-y:${offsetY.toFixed(2)}px;--bio-scale:${effectiveScale.toFixed(3)};`;
 }
 
 function t(key) {

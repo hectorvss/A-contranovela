@@ -688,7 +688,9 @@ body.is-home .footer-links {
   filter: grayscale(1) contrast(1.08);
   height: 100%;
   object-fit: cover;
+  transform: translate(var(--bio-offset-x, 0), var(--bio-offset-y, 0)) scale(var(--bio-scale, 1.12));
   transform-origin: center;
+  transition: transform 140ms ease-out;
   width: 100%;
 }
 
@@ -1689,6 +1691,9 @@ body.is-home .footer-links {
   filter: grayscale(1) contrast(1.08);
   height: 100%;
   object-fit: cover;
+  transform: translate(var(--bio-offset-x, 0), var(--bio-offset-y, 0)) scale(var(--bio-scale, 1.12));
+  transform-origin: center;
+  transition: transform 140ms ease-out;
   width: 100%;
 }
 

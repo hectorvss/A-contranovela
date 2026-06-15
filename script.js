@@ -225,6 +225,26 @@ function buildBody(title, author, summary) {
   ];
 }
 
+function numericScore(item) {
+  const score = Number.parseFloat(String(item?.score ?? "").replace(",", "."));
+  return Number.isFinite(score) ? score : Number.NEGATIVE_INFINITY;
+}
+
+function sortByScoreDesc(items) {
+  return [...items].sort((first, second) => {
+    const scoreDiff = numericScore(second) - numericScore(first);
+    if (scoreDiff) return scoreDiff;
+    return String(first.title || "").localeCompare(String(second.title || ""), "es", { sensitivity: "base" });
+  });
+}
+
+function sectionReviews(section, { visibleOnly = false } = {}) {
+  const items = reviews.filter((item) => item.section === section);
+  if (section !== "escala") return items;
+  const ranked = sortByScoreDesc(items);
+  return visibleOnly ? ranked.slice(0, 10) : ranked;
+}
+
 function slug(value) {
   return value
     .toLowerCase()
@@ -420,7 +440,7 @@ function toSupabaseReview(review, sortOrder) {
 async function persistReviewToSupabase(review) {
   const client = getSupabaseClient();
   if (!client) return null;
-  const sortOrder = Math.max(1, reviews.findIndex((item) => item.id === review.id) + 1);
+  const sortOrder = Math.max(1, sectionReviews(review.section).findIndex((item) => item.id === review.id) + 1);
   const payload = toSupabaseReview(review, sortOrder);
   const { data, error } = await client.from("reviews").upsert(payload).select().single();
   if (error) throw error;
@@ -672,7 +692,7 @@ function renderCardRow(item) {
 }
 
 function renderScale(category) {
-  const items = reviews.filter((item) => item.section === "escala").map(displayReview);
+  const items = sectionReviews("escala", { visibleOnly: true }).map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page scale-page">
       <h1>${t(category.id)}</h1>
@@ -686,7 +706,7 @@ function renderScale(category) {
 }
 
 function renderRanked(category, className) {
-  const items = reviews.filter((item) => item.section === category.id).map(displayReview);
+  const items = sectionReviews(category.id).map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page scale-page ${className}">
       <h1>${t(category.id)}</h1>
@@ -808,8 +828,10 @@ function bindRows() {
 
 function moveDetail(direction) {
   const current = reviews.find((item) => item.id === state.detail);
-  const sameSection = reviews.filter((item) => item.section === current.section);
+  if (!current) return renderHome();
+  const sameSection = sectionReviews(current.section, { visibleOnly: current.section === "escala" });
   const index = sameSection.findIndex((item) => item.id === state.detail);
+  if (index < 0 || !sameSection.length) return renderCategory(current.section);
   const next = sameSection[(index + direction + sameSection.length) % sameSection.length];
   renderDetail(next.id);
 }
@@ -1096,7 +1118,7 @@ function renderManagerDashboard() {
 }
 
 function renderManagerCategoryCard(category) {
-  const items = reviews.filter((item) => item.section === category.id);
+  const items = sectionReviews(category.id);
   const latest = items[0];
   return `
     <button class="manager-category-card" type="button" data-manager-category="${category.id}">
@@ -1108,7 +1130,7 @@ function renderManagerCategoryCard(category) {
 }
 
 function renderManagerCategoryLane(category) {
-  const items = reviews.filter((item) => item.section === category.id);
+  const items = sectionReviews(category.id);
   return `
     <article class="manager-lane">
       <header>
@@ -1143,7 +1165,10 @@ function renderManagerCategoryLane(category) {
 function renderManagerCategory(categoryId) {
   managerState = { screen: "category", category: categoryId, reviewId: null };
   const category = categories.find((item) => item.id === categoryId) || categories[0];
-  const items = reviews.filter((item) => item.section === category.id);
+  const items = sectionReviews(category.id);
+  const publicLimitNote = category.id === "escala"
+    ? `<p class="manager-category-note">ESCALA se ordena automáticamente por nota de mayor a menor. En la web pública solo se muestran los 10 primeros; el resto queda guardado para edición.</p>`
+    : "";
   const screen = getManagerScreen();
   screen.innerHTML = `
     <section class="manager-documents">
@@ -1159,8 +1184,9 @@ function renderManagerCategory(categoryId) {
         <input type="search" placeholder="Buscar en ${t(category.id)}" data-search />
         <span>${items.length} documentos</span>
       </div>
+      ${publicLimitNote}
       <div class="manager-document-grid">
-        ${items.map(renderManagerDocumentCard).join("") || `<p class="manager-empty">Todavia no hay reseñas en esta seccion.</p>`}
+        ${items.map((item, index) => renderManagerDocumentCard(item, category.id === "escala" ? index : null)).join("") || `<p class="manager-empty">Todavia no hay reseñas en esta seccion.</p>`}
       </div>
     </section>
   `;
@@ -1182,9 +1208,11 @@ function renderManagerCategory(categoryId) {
   });
 }
 
-function renderManagerDocumentCard(item) {
+function renderManagerDocumentCard(item, rank = null) {
+  const scaleStatus = rank === null ? "" : `<span class="manager-scale-rank">${String(rank + 1).padStart(2, "0")}${rank < 10 ? " visible" : " archivo"}</span>`;
   return `
     <article class="manager-document-card" data-search-item="${`${item.title} ${item.author} ${item.summary}`.toLowerCase()}">
+      ${scaleStatus}
       ${renderCover(item, "mini")}
       <div class="manager-document-copy">
         <strong>${item.title}</strong>
@@ -1295,6 +1323,7 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
   });
   screen.querySelector("[data-preview]").addEventListener("click", async () => {
     const id = await saveEditedReview(null, false);
+    if (!id) return;
     renderManager("preview", { reviewId: id, category: value.section });
   });
   bindManagerBlockControls(screen);
@@ -1443,6 +1472,22 @@ function renderManagerBioEditor() {
 
 
 async function saveEditedReview(_editor, rerender = true) {
+  const titleField = els.managerForm.querySelector('[name="title"]');
+  const authorField = els.managerForm.querySelector('[name="author"]');
+  [titleField, authorField].forEach((field) => field?.setCustomValidity(""));
+  if (!titleField?.value.trim()) {
+    titleField?.setCustomValidity("Escribe un título para la reseña.");
+    titleField?.reportValidity();
+    titleField?.focus();
+    return null;
+  }
+  if (!authorField?.value.trim()) {
+    authorField?.setCustomValidity("Escribe el autor o autora.");
+    authorField?.reportValidity();
+    authorField?.focus();
+    return null;
+  }
+  if (!els.managerForm.reportValidity()) return null;
   const formData = new FormData(els.managerForm);
   const next = Object.fromEntries(formData.entries());
   next.id = next.id || `${next.section}-${slug(next.author)}-${slug(next.title)}-${Date.now()}`;

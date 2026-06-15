@@ -1375,6 +1375,27 @@ body.is-home .footer-links {
   padding: 12px;
 }
 
+.manager-document-card:has(.manager-scale-rank) {
+  grid-template-columns: 72px 78px minmax(0, 1fr) auto;
+}
+
+.manager-category-note {
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  margin: 0;
+  padding: 12px 14px;
+}
+
+.manager-scale-rank {
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-weight: 900;
+  justify-self: start;
+  padding: 6px 10px;
+  text-transform: uppercase;
+}
+
 .manager-document-card .book-cover {
   width: 78px;
 }
@@ -1756,6 +1777,7 @@ body.is-home .footer-links {
   .manager-subheader,
   .manager-document-toolbar,
   .manager-document-card,
+  .manager-document-card:has(.manager-scale-rank),
   .manager-lane header,
   .manager-lane-item,
   .bio-editor-grid {

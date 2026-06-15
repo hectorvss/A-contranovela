@@ -43,6 +43,7 @@ const categoryLabels = {
     yo: "YO",
     today: "HOY",
     tomorrow: "MAÑANA",
+    week: "SEMANA",
     previous: "← anterior",
     index: "indice",
     next: "siguiente →",
@@ -58,6 +59,7 @@ const categoryLabels = {
     yo: "ME",
     today: "TODAY",
     tomorrow: "TOMORROW",
+    week: "WEEK",
     previous: "← previous",
     index: "index",
     next: "next →",
@@ -699,7 +701,7 @@ function renderScale(category) {
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index)).join("")}
       </div>
-      <div class="week-mark"><span>SEMANA</span><strong>07 - 14</strong></div>
+      <div class="week-mark"><span>${t("week")}</span><strong>07 - 14</strong></div>
     </section>
   `;
   bindRows();

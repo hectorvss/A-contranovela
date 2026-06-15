@@ -22,6 +22,11 @@ const coverFilterPresets = [
   { label: "Frío", value: "grayscale(.85) saturate(.35) contrast(1.08)" },
   { label: "Cálido", value: "grayscale(.75) sepia(.28) contrast(1.03)" },
   { label: "Color bajo", value: "saturate(.45) contrast(1.05)" },
+  { label: "Editorial cream #EAE4D8", value: "grayscale(.82) sepia(.18) saturate(.85) brightness(1.06) contrast(.96)" },
+  { label: "Dusty rose #D0C8C5", value: "grayscale(.68) sepia(.2) saturate(.72) hue-rotate(320deg) brightness(1.02) contrast(.96)" },
+  { label: "Nordic grey blue #B8C1CB", value: "grayscale(.72) sepia(.08) saturate(.9) hue-rotate(170deg) brightness(1.03) contrast(.98)" },
+  { label: "Muted forest #4B5A4E", value: "grayscale(.58) sepia(.2) saturate(.85) hue-rotate(70deg) brightness(.72) contrast(1.08)" },
+  { label: "Editorial black #181818", value: "grayscale(1) brightness(.48) contrast(1.38)" },
   { label: "Original", value: "none" },
 ];
 

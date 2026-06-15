@@ -13,6 +13,8 @@ This folder prepares the project for moving all editorial content out of the sta
   - Replaces broad authenticated write policies with `public.manager_users` checks.
 - `migrations/003_repair_text_encoding.sql`
   - Repairs mojibake text such as `MAÃ‘ANA`, `allÃ­`, broken arrows and Spanish accents in seeded/editorial data.
+- `migrations/004_add_editorial_cover_filters.sql`
+  - Adds the editorial color-inspired cover filters: cream, dusty rose, nordic grey blue, muted forest and editorial black.
 - `seed/reviews.json`
   - JSON export generated from the current local seed content.
   - Useful for audits, scripts or import tooling.
@@ -47,9 +49,10 @@ Both buckets accept `image/png` and `image/jpeg`.
 2. Paste and run `migrations/001_initial_schema_and_seed.sql`.
 3. Paste and run `migrations/002_secure_manager_access.sql`.
 4. Paste and run `migrations/003_repair_text_encoding.sql` if any accent appears broken after seed/import.
-5. Create the manager user in Supabase Auth.
-6. Insert the manager user into `public.manager_users`.
-7. Fill `supabase-config.js`.
+5. Paste and run `migrations/004_add_editorial_cover_filters.sql`.
+6. Create the manager user in Supabase Auth.
+7. Insert the manager user into `public.manager_users`.
+8. Fill `supabase-config.js`.
 3. Confirm the resulting counts:
 
 ```sql
@@ -63,7 +66,7 @@ select count(*) from public.reviews;
 Expected initial counts:
 
 - `categories`: 5
-- `cover_filters`: 20
+- `cover_filters`: 25 after running `004_add_editorial_cover_filters.sql`
 - `editorial_pages`: 1
 - `manager_users`: 1 after you add the manager user manually
 - `reviews`: 31

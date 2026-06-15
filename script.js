@@ -121,14 +121,20 @@ function repairContentEncoding(value) {
 const defaultBioContent = {
   es: {
     lead: "Este proyecto nace de una mania privada: leer como quien escucha una habitacion vacia. No busca ordenar el canon, sino registrar una temperatura. Lo que importa no es solo si un libro funciona, sino que tipo de ruido deja en la cabeza.",
-    one: "El manager de <strong>a contranovela</strong> escribe desde una idea sencilla: la critica no deberia sonar como una sentencia, sino como una forma de atencion. Cada texto intenta mirar el libro de cerca, sin convertirlo en mercancia de recomendacion rapida ni en monumento academico.",
-    two: "Aqui conviven reseñas largas, apuntes veloces, escalas semanales, entusiasmos provisionales y negativas razonadas. Hay libros que se aman, libros que se discuten y libros que se dejan caer con cuidado sobre la mesa para escuchar como suenan.",
+    image: "",
+    blocks: [
+      "El manager de <strong>a contranovela</strong> escribe desde una idea sencilla: la critica no deberia sonar como una sentencia, sino como una forma de atencion. Cada texto intenta mirar el libro de cerca, sin convertirlo en mercancia de recomendacion rapida ni en monumento academico.",
+      "Aqui conviven reseñas largas, apuntes veloces, escalas semanales, entusiasmos provisionales y negativas razonadas. Hay libros que se aman, libros que se discuten y libros que se dejan caer con cuidado sobre la mesa para escuchar como suenan.",
+    ],
     quote: "Leer no para tener razon, sino para afinar la desconfianza.",
   },
   en: {
     lead: "This project begins with a private obsession: reading as if listening to an empty room. It does not try to organize the canon, but to register a temperature.",
-    one: "The manager of <strong>a contranovela</strong> writes from a simple idea: criticism should not sound like a verdict, but like a form of attention.",
-    two: "Long reviews, quick notes, weekly scales, provisional enthusiasms and reasoned refusals coexist here. Some books are loved, some are argued with, and some are placed carefully on the table to hear how they sound.",
+    image: "",
+    blocks: [
+      "The manager of <strong>a contranovela</strong> writes from a simple idea: criticism should not sound like a verdict, but like a form of attention.",
+      "Long reviews, quick notes, weekly scales, provisional enthusiasms and reasoned refusals coexist here. Some books are loved, some are argued with, and some are placed carefully on the table to hear how they sound.",
+    ],
     quote: "To read not in order to be right, but to sharpen distrust.",
   },
 };
@@ -285,6 +291,7 @@ let managerShortcutBuffer = "";
 let managerShortcutTimer = null;
 let managerDraggedBlock = null;
 let pendingCoverFile = null;
+let pendingBioFiles = { es: null, en: null };
 let editorialPages = {};
 let supabaseClient = null;
 let supabaseStatus = "local";
@@ -464,9 +471,10 @@ async function deleteReviewFromSupabase(id) {
 async function saveBioToSupabase(nextBio) {
   const client = getSupabaseClient();
   if (!client) return;
+  const normalized = normalizeBioContent(nextBio);
   const { data, error } = await client
     .from("editorial_pages")
-    .upsert({ id: "yo", title: "YO", content: nextBio })
+    .upsert({ id: "yo", title: "YO", content: normalized })
     .select()
     .single();
   if (error) throw error;
@@ -486,20 +494,36 @@ async function uploadCoverToSupabase(file, reviewId) {
   return client.storage.from("covers").getPublicUrl(path).data.publicUrl;
 }
 
+function normalizeBioLanguage(defaults, source = {}) {
+  const blocks = Array.isArray(source.blocks) && source.blocks.length
+    ? source.blocks
+    : [source.one, source.two].filter(Boolean);
+  return {
+    lead: source.lead || defaults.lead,
+    image: source.image || source.photo || defaults.image || "",
+    blocks: blocks.length ? blocks : [...defaults.blocks],
+    quote: source.quote || defaults.quote,
+  };
+}
+
+function normalizeBioContent(source = {}) {
+  return {
+    es: normalizeBioLanguage(defaultBioContent.es, source.es || {}),
+    en: normalizeBioLanguage(defaultBioContent.en, source.en || {}),
+  };
+}
+
 function loadBioContent() {
   try {
     const stored = JSON.parse(localStorage.getItem(BIO_STORAGE_KEY) || "{}");
-    return {
-      es: { ...defaultBioContent.es, ...(stored.es || {}) },
-      en: { ...defaultBioContent.en, ...(stored.en || {}) },
-    };
+    return normalizeBioContent(stored);
   } catch {
-    return defaultBioContent;
+    return normalizeBioContent(defaultBioContent);
   }
 }
 
 function saveBioContent(nextBio) {
-  localStorage.setItem(BIO_STORAGE_KEY, JSON.stringify(nextBio));
+  localStorage.setItem(BIO_STORAGE_KEY, JSON.stringify(normalizeBioContent(nextBio)));
 }
 
 function currentBio() {
@@ -648,13 +672,18 @@ function renderBio() {
   state = { view: "bio", category: null, detail: null };
   showPanel(t("yo"));
   const bio = currentBio();
+  const imageMarkup = bio.image
+    ? `<figure class="bio-square"><img src="${bio.image}" alt="${escapeAttr(t("yo"))}" loading="lazy" /></figure>`
+    : "";
   els.postList.innerHTML = `
     <section class="bio-page">
       <h1>${t("yo")}</h1>
-      <p class="bio-lead">${bio.lead}</p>
-      <div class="bio-grid">
-        <p>${bio.one}</p>
-        <p>${bio.two}</p>
+      <div class="bio-story ${bio.image ? "has-image" : "no-image"}">
+        ${imageMarkup}
+        <div class="bio-copy">
+          <p class="bio-lead">${bio.lead}</p>
+          ${bio.blocks.map((block) => `<p>${block}</p>`).join("")}
+        </div>
       </div>
       <blockquote>${bio.quote}</blockquote>
     </section>
@@ -895,6 +924,90 @@ function renderImageBlock(value = "") {
   `;
 }
 
+function renderBioTextBlock(lang, value = "") {
+  return `
+    <section class="content-block manager-block bio-text-block" data-bio-text-block>
+      <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Reordenar bloque">↕</button>
+      <div class="block-handle">
+        <strong>BLOQUE</strong>
+        <span>arrastra, toca o usa las flechas</span>
+      </div>
+      <textarea name="${lang}-bio-block" rows="5" placeholder="Escribe un bloque de autobiografía">${value}</textarea>
+      <div class="block-actions">
+        <button type="button" data-move-up>↑</button>
+        <button type="button" data-move-down>↓</button>
+        <button type="button" data-remove-block>eliminar</button>
+      </div>
+    </section>
+  `;
+}
+
+function clearBlockTargets(root) {
+  root.querySelectorAll(".is-drop-target").forEach((block) => block.classList.remove("is-drop-target"));
+}
+
+function bindSortableBlocks(root, selector = ".manager-block") {
+  let pointerDrag = null;
+  const blocks = root.querySelectorAll(selector);
+  blocks.forEach((block) => {
+    const handle = block.querySelector("[data-drag-handle]");
+    if (!handle) return;
+    handle.ondragstart = (event) => {
+      managerDraggedBlock = block;
+      block.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", "manager-block");
+    };
+    handle.ondragend = () => {
+      managerDraggedBlock?.classList.remove("is-dragging");
+      managerDraggedBlock = null;
+      clearBlockTargets(root);
+    };
+    handle.onpointerdown = (event) => {
+      pointerDrag = { block, parent: block.parentElement, pointerId: event.pointerId };
+      block.classList.add("is-dragging");
+      handle.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+    };
+    handle.onpointermove = (event) => {
+      if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
+      event.preventDefault();
+      const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(selector);
+      if (!target || target === pointerDrag.block || target.parentElement !== pointerDrag.parent) return;
+      clearBlockTargets(root);
+      target.classList.add("is-drop-target");
+      const rect = target.getBoundingClientRect();
+      const after = event.clientY > rect.top + rect.height / 2;
+      pointerDrag.parent.insertBefore(pointerDrag.block, after ? target.nextElementSibling : target);
+    };
+    const finishPointerDrag = (event) => {
+      if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
+      pointerDrag.block.classList.remove("is-dragging");
+      pointerDrag = null;
+      clearBlockTargets(root);
+    };
+    handle.onpointerup = finishPointerDrag;
+    handle.onpointercancel = finishPointerDrag;
+  });
+  blocks.forEach((block) => {
+    block.ondragover = (event) => {
+      if (!managerDraggedBlock || managerDraggedBlock === block) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      block.classList.add("is-drop-target");
+    };
+    block.ondragleave = () => block.classList.remove("is-drop-target");
+    block.ondrop = (event) => {
+      event.preventDefault();
+      block.classList.remove("is-drop-target");
+      if (!managerDraggedBlock || managerDraggedBlock === block || managerDraggedBlock.parentElement !== block.parentElement) return;
+      const rect = block.getBoundingClientRect();
+      const after = event.clientY > rect.top + rect.height / 2;
+      block.parentElement.insertBefore(managerDraggedBlock, after ? block.nextElementSibling : block);
+    };
+  });
+}
+
 function bindManagerBlockControls(editor) {
   editor.querySelector("[data-add-block]").onclick = () => {
     editor.querySelector("[data-blocks]").insertAdjacentHTML("beforeend", renderTextBlock());
@@ -919,36 +1032,7 @@ function bindManagerBlockControls(editor) {
   editor.querySelectorAll("[data-remove-block]").forEach((button) => {
     button.onclick = () => button.closest("[data-text-block], [data-image-block]")?.remove();
   });
-  editor.querySelectorAll("[data-drag-handle]").forEach((handle) => {
-    handle.ondragstart = (event) => {
-      managerDraggedBlock = handle.closest("[data-text-block], [data-image-block]");
-      managerDraggedBlock?.classList.add("is-dragging");
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", "manager-block");
-    };
-    handle.ondragend = () => {
-      managerDraggedBlock?.classList.remove("is-dragging");
-      managerDraggedBlock = null;
-      editor.querySelectorAll(".is-drop-target").forEach((block) => block.classList.remove("is-drop-target"));
-    };
-  });
-  editor.querySelectorAll(".manager-block").forEach((block) => {
-    block.ondragover = (event) => {
-      if (!managerDraggedBlock || managerDraggedBlock === block) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-      block.classList.add("is-drop-target");
-    };
-    block.ondragleave = () => block.classList.remove("is-drop-target");
-    block.ondrop = (event) => {
-      event.preventDefault();
-      block.classList.remove("is-drop-target");
-      if (!managerDraggedBlock || managerDraggedBlock === block || managerDraggedBlock.parentElement !== block.parentElement) return;
-      const rect = block.getBoundingClientRect();
-      const after = event.clientY > rect.top + rect.height / 2;
-      block.parentElement.insertBefore(managerDraggedBlock, after ? block.nextElementSibling : block);
-    };
-  });
+  bindSortableBlocks(editor);
   editor.querySelectorAll("[name='articleImage']").forEach((input) => {
     input.oninput = () => {
       const image = input.closest("[data-image-block]")?.querySelector("img");
@@ -977,6 +1061,56 @@ function bindManagerBlockControls(editor) {
       if (input) input.value = filter;
       if (coverImage) coverImage.style.filter = filter;
       editor.querySelectorAll("[data-cover-filter]").forEach((item) => item.classList.toggle("is-active", item === button));
+    };
+  });
+}
+
+function bindBioBlockControls(screen) {
+  screen.querySelectorAll("[data-add-bio-block]").forEach((button) => {
+    button.onclick = () => {
+      const lang = button.dataset.addBioBlock;
+      screen.querySelector(`[data-bio-blocks="${lang}"]`)?.insertAdjacentHTML("beforeend", renderBioTextBlock(lang));
+      bindBioBlockControls(screen);
+    };
+  });
+  screen.querySelectorAll("[data-move-up]").forEach((button) => {
+    button.onclick = () => {
+      const block = button.closest("[data-bio-text-block]");
+      if (block?.previousElementSibling) block.parentElement.insertBefore(block, block.previousElementSibling);
+    };
+  });
+  screen.querySelectorAll("[data-move-down]").forEach((button) => {
+    button.onclick = () => {
+      const block = button.closest("[data-bio-text-block]");
+      if (block?.nextElementSibling) block.parentElement.insertBefore(block.nextElementSibling, block);
+    };
+  });
+  screen.querySelectorAll("[data-remove-block]").forEach((button) => {
+    button.onclick = () => button.closest("[data-bio-text-block]")?.remove();
+  });
+  bindSortableBlocks(screen, "[data-bio-text-block]");
+  screen.querySelectorAll("[data-bio-image-file]").forEach((input) => {
+    input.onchange = () => {
+      const file = input.files?.[0];
+      const lang = input.dataset.bioImageFile;
+      if (!isSupportedImage(file) || !lang) return;
+      pendingBioFiles[lang] = file;
+      readImageFile(file, (dataUrl) => {
+        const urlInput = screen.querySelector(`[name="${lang}-image"]`);
+        const image = screen.querySelector(`[data-bio-preview="${lang}"] img`);
+        if (urlInput) urlInput.value = dataUrl;
+        if (image) image.src = dataUrl;
+      });
+    };
+  });
+  screen.querySelectorAll("[name$='-image']").forEach((input) => {
+    input.oninput = () => {
+      const lang = input.name.replace("-image", "");
+      const preview = screen.querySelector(`[data-bio-preview="${lang}"]`);
+      if (!preview) return;
+      preview.innerHTML = input.value.trim()
+        ? `<img src="${input.value.trim()}" alt="" loading="lazy" />`
+        : `<span>foto</span>`;
     };
   });
 }
@@ -1432,6 +1566,7 @@ function renderManagerDeleteConfirm(reviewId, fallbackCategory = "textos", retur
 function renderManagerBioEditor() {
   managerState = { screen: "bio", category: null, reviewId: null };
   const bio = loadBioContent();
+  pendingBioFiles = { es: null, en: null };
   const screen = getManagerScreen();
   screen.innerHTML = `
     <section class="manager-bio-editor">
@@ -1447,9 +1582,25 @@ function renderManagerBioEditor() {
         ${["es", "en"].map((lang) => `
           <section class="bio-editor-panel">
             <h3>${lang === "es" ? "ESPAÑOL" : "INGLÉS"}</h3>
+            <div class="bio-image-editor">
+              <div class="bio-image-preview" data-bio-preview="${lang}">
+                ${bio[lang].image ? `<img src="${bio[lang].image}" alt="" loading="lazy" />` : `<span>foto</span>`}
+              </div>
+              <div class="bio-image-fields">
+                <label>imagen cuadrada<input name="${lang}-image" value="${escapeAttr(bio[lang].image)}" placeholder="URL de imagen" /></label>
+                <label class="file-picker-label">subir imagen PNG/JPG<input type="file" accept="image/png,image/jpeg" data-bio-image-file="${lang}" /></label>
+              </div>
+            </div>
             <label>entradilla<textarea name="${lang}-lead" rows="5">${bio[lang].lead}</textarea></label>
-            <label>bloque uno<textarea name="${lang}-one" rows="6">${bio[lang].one}</textarea></label>
-            <label>bloque dos<textarea name="${lang}-two" rows="6">${bio[lang].two}</textarea></label>
+            <div class="bio-block-stack">
+              <div class="bio-block-stack-header">
+                <strong>bloques</strong>
+                <button type="button" data-add-bio-block="${lang}">+ bloque</button>
+              </div>
+              <div class="block-stack" data-bio-blocks="${lang}">
+                ${bio[lang].blocks.map((block) => renderBioTextBlock(lang, block)).join("")}
+              </div>
+            </div>
             <label>frase final<textarea name="${lang}-quote" rows="3">${bio[lang].quote}</textarea></label>
           </section>
         `).join("")}
@@ -1459,11 +1610,25 @@ function renderManagerBioEditor() {
   screen.querySelector("[data-manager-back]").addEventListener("click", () => renderManager("dashboard"));
   screen.querySelector("[data-save-bio]").addEventListener("click", async () => {
     const nextBio = { es: {}, en: {} };
-    ["es", "en"].forEach((lang) => {
-      ["lead", "one", "two", "quote"].forEach((field) => {
-        nextBio[lang][field] = screen.querySelector(`[name="${lang}-${field}"]`).value.trim();
-      });
-    });
+    for (const lang of ["es", "en"]) {
+      nextBio[lang] = {
+        lead: screen.querySelector(`[name="${lang}-lead"]`).value.trim(),
+        image: screen.querySelector(`[name="${lang}-image"]`).value.trim(),
+        blocks: Array.from(screen.querySelectorAll(`[name="${lang}-bio-block"]`))
+          .map((field) => field.value.trim())
+          .filter(Boolean),
+        quote: screen.querySelector(`[name="${lang}-quote"]`).value.trim(),
+      };
+      if (!nextBio[lang].blocks.length) nextBio[lang].blocks = [...defaultBioContent[lang].blocks];
+      if (pendingBioFiles[lang] && getSupabaseClient()) {
+        try {
+          nextBio[lang].image = await uploadCoverToSupabase(pendingBioFiles[lang], `bio-${lang}`);
+        } catch (error) {
+          console.error(error);
+          alert(`No se pudo subir la imagen de ${lang.toUpperCase()} a Supabase. Se conservara la vista local.`);
+        }
+      }
+    }
     saveBioContent(nextBio);
     try {
       await saveBioToSupabase(nextBio);
@@ -1475,6 +1640,7 @@ function renderManagerBioEditor() {
     }
     renderManager("bio");
   });
+  bindBioBlockControls(screen);
 }
 
 

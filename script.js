@@ -1,5 +1,6 @@
 ﻿const STORAGE_KEY = "acontranovela.reviews.v1";
 const BIO_STORAGE_KEY = "acontranovela.bio.v1";
+const SCALE_SETTINGS_KEY = "acontranovela.scale-settings.v1";
 const LOCAL_MANAGER_PASSWORD = "LMF39";
 const SUPABASE_CONFIG = window.ACONTRANOVELA_SUPABASE || {};
 const coverFilterPresets = [
@@ -137,6 +138,13 @@ const defaultBioContent = {
     ],
     quote: "To read not in order to be right, but to sharpen distrust.",
   },
+};
+
+const defaultScaleSettings = {
+  mode: "week",
+  week: "2026-W28",
+  startDate: "2026-07-07",
+  endDate: "2026-07-14",
 };
 
 const titleTranslations = {
@@ -368,6 +376,8 @@ async function initSupabaseData() {
     editorialPages = Object.fromEntries((pages || []).map((page) => [page.id, repairContentEncoding(page)]));
     const yo = editorialPages.yo?.content;
     if (yo) saveBioContent(repairContentEncoding(yo));
+    const escala = editorialPages.escala?.content;
+    if (escala) saveScaleSettings(repairContentEncoding(escala));
     persist();
     supabaseStatus = "online";
     rerenderCurrentView();
@@ -481,6 +491,19 @@ async function saveBioToSupabase(nextBio) {
   editorialPages.yo = data;
 }
 
+async function saveScaleSettingsToSupabase(nextSettings) {
+  const client = getSupabaseClient();
+  if (!client) return;
+  const normalized = normalizeScaleSettings(nextSettings);
+  const { data, error } = await client
+    .from("editorial_pages")
+    .upsert({ id: "escala", title: "ESCALA", content: normalized })
+    .select()
+    .single();
+  if (error) throw error;
+  editorialPages.escala = data;
+}
+
 async function uploadCoverToSupabase(file, reviewId) {
   const client = getSupabaseClient();
   if (!client || !file) return "";
@@ -535,6 +558,85 @@ function saveBioContent(nextBio) {
 function currentBio() {
   const bio = loadBioContent();
   return bio[currentLanguage] || bio.es;
+}
+
+function parseDateParts(value) {
+  const [year, month, day] = String(value || "").split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return { year, month, day };
+}
+
+function formatScaleDay(value) {
+  const parts = parseDateParts(value);
+  if (!parts) return "--";
+  return String(parts.day).padStart(2, "0");
+}
+
+function mondayFromIsoWeek(weekValue) {
+  const match = String(weekValue || "").match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  const januaryFourth = new Date(Date.UTC(year, 0, 4));
+  const day = januaryFourth.getUTCDay() || 7;
+  const monday = new Date(januaryFourth);
+  monday.setUTCDate(januaryFourth.getUTCDate() - day + 1 + (week - 1) * 7);
+  return monday;
+}
+
+function toIsoDate(date) {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function weekRangeFromValue(weekValue) {
+  const monday = mondayFromIsoWeek(weekValue);
+  if (!monday) return null;
+  const sunday = new Date(monday);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  return {
+    week: weekValue,
+    startDate: toIsoDate(monday),
+    endDate: toIsoDate(sunday),
+  };
+}
+
+function normalizeScaleSettings(source = {}) {
+  const mode = source.mode === "dates" ? "dates" : "week";
+  const week = source.week || defaultScaleSettings.week;
+  const weekRange = weekRangeFromValue(week) || weekRangeFromValue(defaultScaleSettings.week);
+  let startDate = source.startDate || weekRange.startDate || defaultScaleSettings.startDate;
+  let endDate = source.endDate || weekRange.endDate || defaultScaleSettings.endDate;
+  if (mode === "week" && weekRange) {
+    startDate = weekRange.startDate;
+    endDate = weekRange.endDate;
+  }
+  if (startDate > endDate) [startDate, endDate] = [endDate, startDate];
+  return { mode, week, startDate, endDate };
+}
+
+function loadScaleSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SCALE_SETTINGS_KEY) || "{}");
+    return normalizeScaleSettings(stored);
+  } catch {
+    return normalizeScaleSettings(defaultScaleSettings);
+  }
+}
+
+function saveScaleSettings(nextSettings) {
+  localStorage.setItem(SCALE_SETTINGS_KEY, JSON.stringify(normalizeScaleSettings(nextSettings)));
+}
+
+function currentScaleSettings() {
+  return loadScaleSettings();
+}
+
+function formatScaleRange(settings = currentScaleSettings()) {
+  const normalized = normalizeScaleSettings(settings);
+  return `${formatScaleDay(normalized.startDate)} - ${formatScaleDay(normalized.endDate)}`;
 }
 
 function bioImageInlineStyle(bio) {
@@ -745,13 +847,14 @@ function renderCardRow(item) {
 
 function renderScale(category) {
   const items = sectionReviews("escala", { visibleOnly: true }).map(displayReview);
+  const scaleSettings = currentScaleSettings();
   els.postList.innerHTML = `
     <section class="category-page scale-page">
       <h1>${t(category.id)}</h1>
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index)).join("")}
       </div>
-      <div class="week-mark"><span>${t("week")}</span><strong>07 - 14</strong></div>
+      <div class="week-mark"><span>${t("week")}</span><strong>${formatScaleRange(scaleSettings)}</strong></div>
     </section>
   `;
   bindRows();
@@ -863,6 +966,19 @@ function renderCover(item, size) {
 
 function renderArticleBlocks(item) {
   const images = Array.isArray(item.images) && item.images.length ? item.images : [item.image];
+  const hasInlineMarkers = Array.isArray(item.body) && item.body.some((entry) => /^\[\[image:(\d+)\]\]$/.test(String(entry).trim()));
+  if (hasInlineMarkers) {
+    return item.body
+      .map((entry) => {
+        const marker = String(entry).trim().match(/^\[\[image:(\d+)\]\]$/);
+        if (marker) {
+          const image = images[Number(marker[1])];
+          return image ? `<figure class="inline-photo"><img src="${image}" alt="" loading="lazy" /></figure>` : "";
+        }
+        return `<p>${repairTextEncoding(entry)}</p>`;
+      })
+      .join("");
+  }
   return item.body
     .map((paragraph, index) => {
       const image = images[index - 1];
@@ -903,7 +1019,7 @@ function filterManagerLibrary(event) {
 
 function renderTextBlock(value = "") {
   return `
-    <section class="content-block manager-block" data-text-block>
+    <section class="content-block manager-block" data-text-block data-block-type="text">
       <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Arrastrar bloque">↕</button>
       <div class="block-handle">
         <strong>TEXTO</strong>
@@ -921,7 +1037,7 @@ function renderTextBlock(value = "") {
 
 function renderImageBlock(value = "") {
   return `
-    <section class="image-block manager-block" data-image-block>
+    <section class="image-block manager-block" data-image-block data-block-type="image">
       <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Arrastrar foto">↕</button>
       <img src="${value}" alt="" loading="lazy" />
       <div class="image-block-fields">
@@ -938,6 +1054,34 @@ function renderImageBlock(value = "") {
       </div>
     </section>
   `;
+}
+
+function buildEditorBlocks(item) {
+  if (Array.isArray(item.body) && item.body.some((entry) => /^\[\[image:(\d+)\]\]$/.test(String(entry).trim()))) {
+    const images = Array.isArray(item.images) ? item.images : [];
+    return item.body.map((entry) => {
+      const marker = String(entry).trim().match(/^\[\[image:(\d+)\]\]$/);
+      if (marker) {
+        return { type: "image", value: images[Number(marker[1])] || "" };
+      }
+      return { type: "text", value: String(entry) };
+    });
+  }
+  const blocks = [];
+  const body = Array.isArray(item.body) && item.body.length ? item.body : [""];
+  const images = Array.isArray(item.images) && item.images.length ? item.images : [];
+  body.forEach((paragraph, index) => {
+    blocks.push({ type: "text", value: paragraph });
+    const image = images[index - 1];
+    if (image && index > 0 && index % 2 === 0) {
+      blocks.push({ type: "image", value: image });
+    }
+  });
+  return blocks;
+}
+
+function renderEditorBlock(block) {
+  return block.type === "image" ? renderImageBlock(block.value) : renderTextBlock(block.value);
 }
 
 function renderBioTextBlock(lang, value = "") {
@@ -1055,7 +1199,7 @@ function bindManagerBlockControls(editor) {
     bindManagerBlockControls(editor);
   };
   editor.querySelector("[data-add-image]").onclick = () => {
-    editor.querySelector("[data-images]").insertAdjacentHTML("beforeend", renderImageBlock("https://picsum.photos/id/1005/420/560"));
+    editor.querySelector("[data-blocks]").insertAdjacentHTML("beforeend", renderImageBlock("https://picsum.photos/id/1005/420/560"));
     bindManagerBlockControls(editor);
   };
   editor.querySelectorAll("[data-move-up]").forEach((button) => {
@@ -1368,6 +1512,45 @@ function renderManagerCategory(categoryId) {
   const publicLimitNote = category.id === "escala"
     ? `<p class="manager-category-note">ESCALA se ordena automáticamente por nota de mayor a menor. En la web pública solo se muestran los 10 primeros; el resto queda guardado para edición.</p>`
     : "";
+  const scaleSettings = currentScaleSettings();
+  const scaleCalendarControls = category.id === "escala"
+    ? `
+      <section class="manager-scale-calendar">
+        <div class="manager-scale-calendar-copy">
+          <strong>SEMANA VISIBLE EN ESCALA</strong>
+          <p>Selecciona una semana completa o define un rango exacto de fechas. El cliente final mostrará exactamente ese tramo al pie de ESCALA.</p>
+        </div>
+        <div class="manager-scale-calendar-grid">
+          <label>
+            modo
+            <select data-scale-mode>
+              <option value="week" ${scaleSettings.mode === "week" ? "selected" : ""}>semana completa</option>
+              <option value="dates" ${scaleSettings.mode === "dates" ? "selected" : ""}>día a día</option>
+            </select>
+          </label>
+          <label data-scale-week-wrap ${scaleSettings.mode === "dates" ? "hidden" : ""}>
+            semana ISO
+            <input type="week" value="${scaleSettings.week}" data-scale-week />
+          </label>
+          <label>
+            desde
+            <input type="date" value="${scaleSettings.startDate}" data-scale-start />
+          </label>
+          <label>
+            hasta
+            <input type="date" value="${scaleSettings.endDate}" data-scale-end />
+          </label>
+        </div>
+        <div class="manager-scale-calendar-actions">
+          <small data-scale-preview>Visible ahora: ${formatScaleRange(scaleSettings)}</small>
+          <div class="manager-scale-calendar-buttons">
+            <button class="text-button manager-chip-button" type="button" data-scale-current-week>usar semana del selector</button>
+            <button class="submit-button" type="button" data-save-scale-range>guardar fechas</button>
+          </div>
+        </div>
+      </section>
+    `
+    : "";
   const screen = getManagerScreen();
   screen.innerHTML = `
     <section class="manager-documents">
@@ -1384,6 +1567,7 @@ function renderManagerCategory(categoryId) {
         <span>${items.length} documentos</span>
       </div>
       ${publicLimitNote}
+      ${scaleCalendarControls}
       <div class="manager-document-grid">
         ${items.map((item, index) => renderManagerDocumentCard(item, category.id === "escala" ? index : null)).join("") || `<p class="manager-empty">Todavia no hay reseñas en esta seccion.</p>`}
       </div>
@@ -1405,6 +1589,57 @@ function renderManagerCategory(categoryId) {
       returnScreen: "category",
     }));
   });
+  if (category.id === "escala") bindScaleCalendarControls(screen);
+}
+
+function bindScaleCalendarControls(screen) {
+  const mode = screen.querySelector("[data-scale-mode]");
+  const weekInput = screen.querySelector("[data-scale-week]");
+  const startInput = screen.querySelector("[data-scale-start]");
+  const endInput = screen.querySelector("[data-scale-end]");
+  const weekWrap = screen.querySelector("[data-scale-week-wrap]");
+  const preview = screen.querySelector("[data-scale-preview]");
+  const syncPreview = () => {
+    const settings = normalizeScaleSettings({
+      mode: mode?.value,
+      week: weekInput?.value,
+      startDate: startInput?.value,
+      endDate: endInput?.value,
+    });
+    if (weekWrap) weekWrap.hidden = settings.mode === "dates";
+    if (settings.mode === "week" && weekInput?.value) {
+      const range = weekRangeFromValue(weekInput.value);
+      if (range) {
+        startInput.value = range.startDate;
+        endInput.value = range.endDate;
+      }
+    }
+    if (preview) preview.textContent = `Visible ahora: ${formatScaleRange(settings)}`;
+  };
+  [mode, weekInput, startInput, endInput].forEach((field) => field?.addEventListener("input", syncPreview));
+  screen.querySelector("[data-scale-current-week]")?.addEventListener("click", () => {
+    if (mode) mode.value = "week";
+    syncPreview();
+  });
+  screen.querySelector("[data-save-scale-range]")?.addEventListener("click", async () => {
+    const nextSettings = normalizeScaleSettings({
+      mode: mode?.value,
+      week: weekInput?.value,
+      startDate: startInput?.value,
+      endDate: endInput?.value,
+    });
+    saveScaleSettings(nextSettings);
+    try {
+      await saveScaleSettingsToSupabase(nextSettings);
+      supabaseStatus = getSupabaseClient() ? "online" : "local";
+    } catch (error) {
+      console.error(error);
+      supabaseStatus = "error";
+      alert("Las fechas de ESCALA se guardaron localmente, pero no se pudieron sincronizar con Supabase.");
+    }
+    renderManager("category", { category: "escala" });
+  });
+  syncPreview();
 }
 
 function renderManagerDocumentCard(item, rank = null) {
@@ -1431,8 +1666,7 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
   const item = reviews.find((review) => review.id === reviewId) || {};
   const categoryId = item.section || fallbackCategory || "textos";
   managerState = { screen: "editor", category: categoryId, reviewId: item.id || null };
-  const bodyBlocks = item.body && item.body.length ? item.body : [""];
-  const images = Array.isArray(item.images) && item.images.length ? item.images : [item.image || "https://picsum.photos/id/1005/420/560"];
+  const editorBlocks = buildEditorBlocks(item);
   const value = {
     section: categoryId,
     author: item.author || "",
@@ -1471,12 +1705,8 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
             <button type="button" data-add-block>+ BLOQUE TEXTO</button>
             <button type="button" data-add-image>+ FOTO</button>
           </div>
-          <div class="block-stack" data-blocks>
-            ${bodyBlocks.map((paragraph) => renderTextBlock(paragraph)).join("")}
-          </div>
-          <div class="image-stack" data-images>
-            <h3>FOTOS DEL ARTICULO</h3>
-            ${images.map((image) => renderImageBlock(image)).join("")}
+          <div class="block-stack article-block-stack" data-blocks>
+            ${editorBlocks.map((block) => renderEditorBlock(block)).join("")}
           </div>
         </div>
         <aside class="compose-side">
@@ -1731,8 +1961,21 @@ async function saveEditedReview(_editor, rerender = true) {
   const next = Object.fromEntries(formData.entries());
   next.id = next.id || `${next.section}-${slug(next.author)}-${slug(next.title)}-${Date.now()}`;
   next.slot = next.section === "hoy-manana" ? next.slot || "hoy" : next.slot || "";
-  next.body = formData.getAll("bodyBlock").map((paragraph) => paragraph.trim()).filter(Boolean);
-  next.images = formData.getAll("articleImage").map((image) => image.trim()).filter(Boolean);
+  next.body = [];
+  next.images = [];
+  els.managerForm.querySelectorAll("[data-block-type]").forEach((block) => {
+    if (block.dataset.blockType === "text") {
+      const text = block.querySelector("[name='bodyBlock']")?.value.trim();
+      if (text) next.body.push(text);
+      return;
+    }
+    if (block.dataset.blockType === "image") {
+      const image = block.querySelector("[name='articleImage']")?.value.trim();
+      if (!image) return;
+      const imageIndex = next.images.push(image) - 1;
+      next.body.push(`[[image:${imageIndex}]]`);
+    }
+  });
   if (pendingCoverFile && getSupabaseClient()) {
     try {
       next.image = await uploadCoverToSupabase(pendingCoverFile, next.id);
@@ -1742,7 +1985,7 @@ async function saveEditedReview(_editor, rerender = true) {
       alert("No se pudo subir la portada a Supabase. Se guardara la vista previa local.");
     }
   }
-  if (!next.body.length) next.body = ["Nueva reseña pendiente de escritura."];
+  if (!next.body.some((entry) => !/^\[\[image:(\d+)\]\]$/.test(String(entry).trim()))) next.body.unshift("Nueva reseña pendiente de escritura.");
   const index = reviews.findIndex((item) => item.id === next.id);
   if (index >= 0) reviews[index] = next;
   else reviews.unshift(next);

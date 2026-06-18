@@ -1020,7 +1020,7 @@ function filterManagerLibrary(event) {
 function renderTextBlock(value = "") {
   return `
     <section class="content-block manager-block" data-text-block data-block-type="text">
-      <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Arrastrar bloque">↕</button>
+      <button class="block-drag-tab" type="button" data-drag-handle aria-label="Arrastrar bloque">↕</button>
       <div class="block-handle">
         <strong>TEXTO</strong>
         <span>arrastra la pestaña o usa las flechas</span>
@@ -1038,7 +1038,7 @@ function renderTextBlock(value = "") {
 function renderImageBlock(value = "") {
   return `
     <section class="image-block manager-block" data-image-block data-block-type="image">
-      <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Arrastrar foto">↕</button>
+      <button class="block-drag-tab" type="button" data-drag-handle aria-label="Arrastrar foto">↕</button>
       <img src="${value}" alt="" loading="lazy" />
       <div class="image-block-fields">
         <div class="block-handle">
@@ -1087,7 +1087,7 @@ function renderEditorBlock(block) {
 function renderBioTextBlock(lang, value = "") {
   return `
     <section class="content-block manager-block bio-text-block" data-bio-text-block>
-      <button class="block-drag-tab" type="button" draggable="true" data-drag-handle aria-label="Reordenar bloque">↕</button>
+      <button class="block-drag-tab" type="button" data-drag-handle aria-label="Reordenar bloque">↕</button>
       <div class="block-handle">
         <strong>BLOQUE</strong>
         <span>arrastra, toca o usa las flechas</span>
@@ -1115,28 +1115,42 @@ function placeDraggedBlock(target, draggedBlock, clientY) {
 
 function bindSortableBlocks(root, selector = ".manager-block") {
   let pointerDrag = null;
+  const cleanupPointerDrag = () => {
+    if (!pointerDrag) return;
+    const { block, placeholder } = pointerDrag;
+    block.classList.remove("is-dragging");
+    block.style.width = "";
+    block.style.height = "";
+    block.style.left = "";
+    block.style.top = "";
+    block.style.position = "";
+    block.style.zIndex = "";
+    block.style.pointerEvents = "";
+    block.style.margin = "";
+    placeholder?.replaceWith(block);
+    document.body.classList.remove("is-sorting-blocks");
+    managerDraggedBlock = null;
+    pointerDrag = null;
+    clearBlockTargets(root);
+  };
   const blocks = root.querySelectorAll(selector);
   blocks.forEach((block) => {
     const handle = block.querySelector("[data-drag-handle]");
     if (!handle) return;
-    handle.ondragstart = (event) => {
-      managerDraggedBlock = block;
-      block.classList.add("is-dragging");
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", "manager-block");
-    };
-    handle.ondragend = () => {
-      managerDraggedBlock?.classList.remove("is-dragging");
-      managerDraggedBlock = null;
-      clearBlockTargets(root);
-    };
+    handle.ondragstart = null;
+    handle.ondragend = null;
     handle.onpointerdown = (event) => {
+      if (event.button !== 0 && event.pointerType !== "touch") return;
       pointerDrag = {
         block,
         parent: block.parentElement,
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
+        offsetX: event.clientX - block.getBoundingClientRect().left,
+        offsetY: event.clientY - block.getBoundingClientRect().top,
+        rect: block.getBoundingClientRect(),
+        placeholder: null,
         dragging: false,
       };
       handle.setPointerCapture?.(event.pointerId);
@@ -1151,45 +1165,48 @@ function bindSortableBlocks(root, selector = ".manager-block") {
         if (Math.max(movedX, movedY) < 8) return;
         pointerDrag.dragging = true;
         managerDraggedBlock = pointerDrag.block;
+        const placeholder = document.createElement("div");
+        placeholder.className = "sortable-placeholder";
+        placeholder.style.height = `${pointerDrag.rect.height}px`;
+        pointerDrag.placeholder = placeholder;
+        pointerDrag.parent.insertBefore(placeholder, pointerDrag.block);
         pointerDrag.block.classList.add("is-dragging");
+        pointerDrag.block.style.width = `${pointerDrag.rect.width}px`;
+        pointerDrag.block.style.height = `${pointerDrag.rect.height}px`;
+        pointerDrag.block.style.left = `${pointerDrag.rect.left}px`;
+        pointerDrag.block.style.top = `${pointerDrag.rect.top}px`;
+        pointerDrag.block.style.position = "fixed";
+        pointerDrag.block.style.zIndex = "1200";
+        pointerDrag.block.style.pointerEvents = "none";
+        pointerDrag.block.style.margin = "0";
+        document.body.appendChild(pointerDrag.block);
+        document.body.classList.add("is-sorting-blocks");
       }
+      pointerDrag.block.style.left = `${event.clientX - pointerDrag.offsetX}px`;
+      pointerDrag.block.style.top = `${event.clientY - pointerDrag.offsetY}px`;
       const target = document.elementFromPoint(event.clientX, event.clientY)?.closest(selector);
-      if (!target || target.parentElement !== pointerDrag.parent) return;
       clearBlockTargets(root);
-      if (target === pointerDrag.block) return;
-      target.classList.add("is-drop-target");
-      placeDraggedBlock(target, pointerDrag.block, event.clientY);
+      if (target && target !== pointerDrag.block && target.parentElement === pointerDrag.parent) {
+        target.classList.add("is-drop-target");
+        placeDraggedBlock(target, pointerDrag.placeholder, event.clientY);
+        return;
+      }
+      const siblings = Array.from(pointerDrag.parent.querySelectorAll(selector)).filter((item) => item !== pointerDrag.placeholder);
+      const last = siblings.at(-1);
+      if (last) {
+        const rect = last.getBoundingClientRect();
+        if (event.clientY > rect.bottom - 12) {
+          pointerDrag.parent.appendChild(pointerDrag.placeholder);
+        }
+      }
     };
     const finishPointerDrag = (event) => {
       if (!pointerDrag || pointerDrag.pointerId !== event.pointerId) return;
-      pointerDrag.block.classList.remove("is-dragging");
-      managerDraggedBlock = null;
-      pointerDrag = null;
-      clearBlockTargets(root);
+      cleanupPointerDrag();
     };
     handle.onpointerup = finishPointerDrag;
     handle.onpointercancel = finishPointerDrag;
-    handle.onlostpointercapture = () => {
-      if (!pointerDrag) return;
-      pointerDrag.block.classList.remove("is-dragging");
-      managerDraggedBlock = null;
-      pointerDrag = null;
-      clearBlockTargets(root);
-    };
-  });
-  blocks.forEach((block) => {
-    block.ondragover = (event) => {
-      if (!managerDraggedBlock || managerDraggedBlock === block) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = "move";
-      block.classList.add("is-drop-target");
-    };
-    block.ondragleave = () => block.classList.remove("is-drop-target");
-    block.ondrop = (event) => {
-      event.preventDefault();
-      block.classList.remove("is-drop-target");
-      placeDraggedBlock(block, managerDraggedBlock, event.clientY);
-    };
+    handle.onlostpointercapture = cleanupPointerDrag;
   });
 }
 

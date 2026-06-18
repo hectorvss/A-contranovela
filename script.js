@@ -50,6 +50,7 @@ const categoryLabels = {
     today: "HOY",
     tomorrow: "MAÑANA",
     week: "SEMANA",
+    month: "MES",
     previous: "← anterior",
     index: "indice",
     next: "siguiente →",
@@ -66,6 +67,7 @@ const categoryLabels = {
     today: "TODAY",
     tomorrow: "TOMORROW",
     week: "WEEK",
+    month: "MONTH",
     previous: "← previous",
     index: "index",
     next: "next →",
@@ -145,6 +147,8 @@ const defaultScaleSettings = {
   week: "2026-W28",
   startDate: "2026-07-07",
   endDate: "2026-07-14",
+  month: 7,
+  year: 2026,
 };
 
 const titleTranslations = {
@@ -572,6 +576,17 @@ function formatScaleDay(value) {
   return String(parts.day).padStart(2, "0");
 }
 
+function formatScaleMonthLabel(month, year) {
+  const monthIndex = Math.min(12, Math.max(1, Number(month) || 1)) - 1;
+  const safeYear = Number(year) || new Date().getFullYear();
+  const formatter = new Intl.DateTimeFormat(currentLanguage === "en" ? "en-GB" : "es-ES", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  return formatter.format(new Date(Date.UTC(safeYear, monthIndex, 1))).toUpperCase();
+}
+
 function mondayFromIsoWeek(weekValue) {
   const match = String(weekValue || "").match(/^(\d{4})-W(\d{2})$/);
   if (!match) return null;
@@ -614,7 +629,15 @@ function normalizeScaleSettings(source = {}) {
     endDate = weekRange.endDate;
   }
   if (startDate > endDate) [startDate, endDate] = [endDate, startDate];
-  return { mode, week, startDate, endDate };
+  const parts = parseDateParts(startDate) || { year: defaultScaleSettings.year, month: defaultScaleSettings.month };
+  return {
+    mode,
+    week,
+    startDate,
+    endDate,
+    month: mode === "week" ? parts.month : (Number(source.month) || parts.month),
+    year: mode === "week" ? parts.year : (Number(source.year) || parts.year),
+  };
 }
 
 function loadScaleSettings() {
@@ -637,6 +660,11 @@ function currentScaleSettings() {
 function formatScaleRange(settings = currentScaleSettings()) {
   const normalized = normalizeScaleSettings(settings);
   return `${formatScaleDay(normalized.startDate)} - ${formatScaleDay(normalized.endDate)}`;
+}
+
+function formatScaleMonthYear(settings = currentScaleSettings()) {
+  const normalized = normalizeScaleSettings(settings);
+  return formatScaleMonthLabel(normalized.month, normalized.year);
 }
 
 function bioImageInlineStyle(bio) {
@@ -854,7 +882,7 @@ function renderScale(category) {
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index)).join("")}
       </div>
-      <div class="week-mark"><span>${t("week")}</span><strong>${formatScaleRange(scaleSettings)}</strong></div>
+      <div class="week-mark"><span>${t("week")}</span><strong>${formatScaleRange(scaleSettings)}</strong><em>${formatScaleMonthYear(scaleSettings)}</em></div>
     </section>
   `;
   bindRows();
@@ -1557,6 +1585,20 @@ function renderManagerCategory(categoryId) {
             hasta
             <input type="date" value="${scaleSettings.endDate}" data-scale-end />
           </label>
+          <label>
+            ${t("month")}
+            <select data-scale-month>
+              ${Array.from({ length: 12 }, (_, index) => {
+                const monthValue = index + 1;
+                const label = formatScaleMonthLabel(monthValue, scaleSettings.year).replace(/\s+\d{4}$/, "");
+                return `<option value="${monthValue}" ${monthValue === scaleSettings.month ? "selected" : ""}>${label}</option>`;
+              }).join("")}
+            </select>
+          </label>
+          <label>
+            año
+            <input type="number" min="2000" max="2100" value="${scaleSettings.year}" data-scale-year />
+          </label>
         </div>
         <div class="manager-scale-calendar-actions">
           <small data-scale-preview>Visible ahora: ${formatScaleRange(scaleSettings)}</small>
@@ -1614,6 +1656,8 @@ function bindScaleCalendarControls(screen) {
   const weekInput = screen.querySelector("[data-scale-week]");
   const startInput = screen.querySelector("[data-scale-start]");
   const endInput = screen.querySelector("[data-scale-end]");
+  const monthInput = screen.querySelector("[data-scale-month]");
+  const yearInput = screen.querySelector("[data-scale-year]");
   const weekWrap = screen.querySelector("[data-scale-week-wrap]");
   const preview = screen.querySelector("[data-scale-preview]");
   const syncPreview = () => {
@@ -1622,6 +1666,8 @@ function bindScaleCalendarControls(screen) {
       week: weekInput?.value,
       startDate: startInput?.value,
       endDate: endInput?.value,
+      month: monthInput?.value,
+      year: yearInput?.value,
     });
     if (weekWrap) weekWrap.hidden = settings.mode === "dates";
     if (settings.mode === "week" && weekInput?.value) {
@@ -1629,11 +1675,13 @@ function bindScaleCalendarControls(screen) {
       if (range) {
         startInput.value = range.startDate;
         endInput.value = range.endDate;
+        monthInput.value = String(settings.month);
+        yearInput.value = String(settings.year);
       }
     }
-    if (preview) preview.textContent = `Visible ahora: ${formatScaleRange(settings)}`;
+    if (preview) preview.textContent = `Visible ahora: ${formatScaleRange(settings)} · ${formatScaleMonthYear(settings)}`;
   };
-  [mode, weekInput, startInput, endInput].forEach((field) => field?.addEventListener("input", syncPreview));
+  [mode, weekInput, startInput, endInput, monthInput, yearInput].forEach((field) => field?.addEventListener("input", syncPreview));
   screen.querySelector("[data-scale-current-week]")?.addEventListener("click", () => {
     if (mode) mode.value = "week";
     syncPreview();
@@ -1644,6 +1692,8 @@ function bindScaleCalendarControls(screen) {
       week: weekInput?.value,
       startDate: startInput?.value,
       endDate: endInput?.value,
+      month: monthInput?.value,
+      year: yearInput?.value,
     });
     saveScaleSettings(nextSettings);
     try {

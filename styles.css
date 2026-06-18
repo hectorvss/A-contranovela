@@ -520,6 +520,19 @@ body.is-home .footer-links {
   text-align: left;
 }
 
+.week-mark em {
+  display: block;
+  font-family: var(--mono);
+  font-size: clamp(19px, 2.8vw, 30px);
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  letter-spacing: 0;
+  margin-top: 4px;
+  text-align: left;
+  text-transform: uppercase;
+}
+
 .today-page {
   max-width: 900px;
 }

@@ -460,8 +460,7 @@ body.is-home .footer-links {
   text-align: right;
 }
 
-.rank,
-.week-mark strong {
+.rank {
   font-family: var(--mono);
   font-size: clamp(19px, 2.8vw, 30px);
   font-variant-numeric: tabular-nums;
@@ -516,21 +515,29 @@ body.is-home .footer-links {
 }
 
 .week-mark strong {
-  display: block;
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: clamp(16px, 2.3vw, 24px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  letter-spacing: 0;
   text-align: left;
+  white-space: nowrap;
 }
 
 .week-mark em {
-  display: block;
+  display: inline-block;
   font-family: var(--mono);
-  font-size: clamp(19px, 2.8vw, 30px);
+  font-size: clamp(16px, 2.3vw, 24px);
   font-style: normal;
   font-variant-numeric: tabular-nums;
   font-weight: 400;
   letter-spacing: 0;
-  margin-top: 4px;
+  margin-left: 10px;
+  margin-top: 0;
   text-align: left;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .today-page {

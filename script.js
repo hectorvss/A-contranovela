@@ -307,6 +307,7 @@ let pendingBioFiles = { es: null, en: null };
 let editorialPages = {};
 let supabaseClient = null;
 let supabaseStatus = "local";
+let managerNotice = "";
 
 renderHome();
 initCustomCursor();
@@ -687,6 +688,10 @@ function syncStatusLabel() {
   return "MODO LOCAL";
 }
 
+function managerStatusLine() {
+  return [managerNotice, syncStatusLabel()].filter(Boolean).join(" · ");
+}
+
 function displayReview(item) {
   if (!item) return item;
   if (currentLanguage === "es") return item;
@@ -781,25 +786,25 @@ function requestManagerAccess() {
   const error = gate.querySelector("[data-manager-error]");
   const unlock = async () => {
     const hasRemoteAuth = Boolean(getSupabaseClient());
-    if (hasRemoteAuth || input.value === LOCAL_MANAGER_PASSWORD) {
-      try {
-        error.textContent = "Conectando...";
-        const ready = hasRemoteAuth ? await ensureManagerSession(input.value) : true;
-        if (!ready) {
-          error.textContent = "Configura managerEmail en supabase-config.js.";
-          return;
-        }
-        closeManagerGate();
-        renderManager();
-      } catch (authError) {
-        console.error(authError);
-        error.textContent = hasRemoteAuth ? "No se pudo autenticar en Supabase." : "No se pudo abrir el panel.";
-      }
+    if (input.value !== LOCAL_MANAGER_PASSWORD) {
+      error.textContent = "Contraseña incorrecta.";
+      input.value = "";
+      input.focus();
       return;
     }
-    error.textContent = "Contraseña incorrecta.";
-    input.value = "";
-    input.focus();
+    try {
+      error.textContent = "Conectando...";
+      const ready = hasRemoteAuth ? await ensureManagerSession(input.value) : true;
+      if (!ready) {
+        error.textContent = "Configura managerEmail en supabase-config.js.";
+        return;
+      }
+      closeManagerGate();
+      renderManager();
+    } catch (authError) {
+      console.error(authError);
+      error.textContent = hasRemoteAuth ? "No se pudo autenticar en Supabase." : "No se pudo abrir el panel.";
+    }
   };
   gate.querySelector("[data-manager-unlock]").addEventListener("click", unlock);
   gate.querySelector(".manager-gate-close").addEventListener("click", closeManagerGate);
@@ -1436,7 +1441,7 @@ function renderManager(screen = "dashboard", options = {}) {
           <span class="manager-kicker">PANEL EDITORIAL</span>
           <h1>MANAGER</h1>
           <p>Elige una seccion, administra documentos y edita cada reseña por bloques.</p>
-          <small class="manager-sync-state">${syncStatusLabel()}</small>
+          <small class="manager-sync-state">${managerStatusLine()}</small>
         </div>
         <div class="manager-header-actions">
           <button class="manager-nav-button" type="button" data-manager-dashboard>INICIO</button>
@@ -1699,9 +1704,11 @@ function bindScaleCalendarControls(screen) {
     try {
       await saveScaleSettingsToSupabase(nextSettings);
       supabaseStatus = getSupabaseClient() ? "online" : "local";
+      managerNotice = "ESCALA ACTUALIZADA";
     } catch (error) {
       console.error(error);
       supabaseStatus = "error";
+      managerNotice = "ESCALA GUARDADA SOLO EN LOCAL";
       alert("Las fechas de ESCALA se guardaron localmente, pero no se pudieron sincronizar con Supabase.");
     }
     renderManager("category", { category: "escala" });
@@ -1733,6 +1740,7 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
   const item = reviews.find((review) => review.id === reviewId) || {};
   const categoryId = item.section || fallbackCategory || "textos";
   managerState = { screen: "editor", category: categoryId, reviewId: item.id || null };
+  pendingCoverFile = null;
   const editorBlocks = buildEditorBlocks(item);
   const value = {
     section: categoryId,
@@ -1744,8 +1752,9 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
     year: item.year || "2026",
     translator: item.translator || "-",
     pages: item.pages || "",
-    image: item.image || images[0] || "https://picsum.photos/id/1005/420/560",
+    image: item.image || "https://picsum.photos/id/1005/420/560",
     tone: item.tone || "#efe7d8",
+    coverFilter: item.coverFilter || "grayscale(1) contrast(1.05)",
     slot: item.slot || "",
   };
   const screen = getManagerScreen();
@@ -1996,9 +2005,11 @@ function renderManagerBioEditor() {
     try {
       await saveBioToSupabase(nextBio);
       supabaseStatus = getSupabaseClient() ? "online" : "local";
+      managerNotice = "AUTOBIOGRAFIA GUARDADA";
     } catch (error) {
       console.error(error);
       supabaseStatus = "error";
+      managerNotice = "AUTOBIOGRAFIA GUARDADA SOLO EN LOCAL";
       alert("La autobiografia se guardo localmente, pero no se pudo sincronizar con Supabase.");
     }
     renderManager("bio");
@@ -2060,9 +2071,11 @@ async function saveEditedReview(_editor, rerender = true) {
   try {
     await persistReviewToSupabase(next);
     supabaseStatus = getSupabaseClient() ? "online" : "local";
+    managerNotice = "RESENA GUARDADA";
   } catch (error) {
     console.error(error);
     supabaseStatus = "error";
+    managerNotice = "RESENA GUARDADA SOLO EN LOCAL";
     alert("La reseña se guardo localmente, pero no se pudo sincronizar con Supabase.");
   }
   if (rerender) renderManager("editor", { reviewId: next.id, category: next.section });
@@ -2076,9 +2089,11 @@ async function deleteReview(id, rerender = true) {
   try {
     await deleteReviewFromSupabase(id);
     supabaseStatus = getSupabaseClient() ? "online" : "local";
+    managerNotice = "RESENA ELIMINADA";
   } catch (error) {
     console.error(error);
     supabaseStatus = "error";
+    managerNotice = "RESENA ELIMINADA SOLO EN LOCAL";
     alert("La reseña se elimino localmente, pero no se pudo eliminar en Supabase.");
   }
   if (rerender) renderManager("dashboard");

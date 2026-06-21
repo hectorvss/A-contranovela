@@ -2,6 +2,7 @@
 const BIO_STORAGE_KEY = "acontranovela.bio.v1";
 const SCALE_SETTINGS_KEY = "acontranovela.scale-settings.v1";
 const REVIEW_ACCESS_KEY = "acontranovela.review-access.v1";
+const NEWSLETTER_PROMPT_KEY = "acontranovela.newsletter-prompt.v1";
 const LOCAL_MANAGER_PASSWORD = "LMF39";
 const SUPABASE_CONFIG = window.ACONTRANOVELA_SUPABASE || {};
 const coverFilterPresets = [
@@ -348,6 +349,8 @@ let editorialPages = {};
 let supabaseClient = null;
 let supabaseStatus = "local";
 let managerNotice = "";
+let newsletterPromptTimer = null;
+let newsletterDraftEmail = "";
 
 renderHome();
 initCustomCursor();
@@ -577,6 +580,19 @@ async function saveReviewAccessToSupabase(nextSettings) {
     .single();
   if (error) throw error;
   editorialPages["review-access"] = data;
+}
+
+async function saveNewsletterSubscriberToSupabase(email) {
+  const client = getSupabaseClient();
+  if (!client) throw new Error("newsletter_not_configured");
+  const normalizedEmail = email.trim().toLowerCase();
+  const { error } = await client.from("newsletter_subscribers").insert({
+    email: normalizedEmail,
+    locale: currentLanguage,
+    source: "popup",
+  });
+  if (error && error.code !== "23505") throw error;
+  return normalizedEmail;
 }
 
 async function uploadCoverToSupabase(file, reviewId) {
@@ -811,30 +827,18 @@ function managerStatusLine() {
 function displayReview(item) {
   if (!item) return item;
   if (currentLanguage === "es") return item;
-  const title = titleTranslations[item.title] || item.title;
-  const summary = buildEnglishSummary(title, item.author, item.section);
+  const localized = item.translations?.en || {};
   return {
     ...item,
-    title,
-    summary,
-    body: buildBodyEnglish(title, item.author, summary),
+    title: localized.title || item.title,
+    summary: localized.summary || item.summary,
+    body: Array.isArray(localized.body) && localized.body.length ? localized.body : item.body,
+    publisher: localized.publisher || item.publisher,
+    year: localized.year || item.year,
+    translator: localized.translator || item.translator,
+    pages: localized.pages || item.pages,
+    linkText: localized.linkText || item.linkText,
   };
-}
-
-function buildEnglishSummary(title, author, section) {
-  if (section === "no") {
-    return `${author}'s ${title} is read here against the grain: a book with cultural weight, but also with visible limits in rhythm, character, or ambition.`;
-  }
-  return `${author}'s ${title} is approached as a literary object of attention, silence and form: a book that asks the reader to slow down and listen to what remains after the plot.`;
-}
-
-function buildBodyEnglish(title, author, summary) {
-  return [
-    `Some books are not simply read: they are crossed. ${title} belongs to that family because ${summary.toLowerCase()} The experience is not exhausted by the argument; it happens in the breathing of the prose, in the way each page manages silence, delay and discomfort.`,
-    `${author} works here with a clear sense of rhythm. The writing does not decorate an idea; it tests it. Every scene seems arranged so the reader can perceive what moves beneath the surface: loss, suspicion, memory, desire, or a way of looking that can no longer return to innocence.`,
-    `What matters most is the tension between form and temperature. The book may look sober, even cold, but there is a persistent energy underneath. Its value lies in refusing to be consumed too quickly.`,
-    `That is why the reading leaves a double impression: the precision of a finished piece and, at the same time, the feeling that something remains open outside the book. Its strength is not to impose a conclusion, but to leave a moral vibration after the final page.`,
-  ];
 }
 
 function toggleLanguage() {
@@ -845,6 +849,179 @@ function toggleLanguage() {
   else if (state.view === "category") renderCategory(state.category);
   else if (state.view === "detail") renderDetail(state.detail);
   else renderManager();
+}
+
+function normalizeNewsletterPromptState(source = {}) {
+  return {
+    shown: source.shown === true,
+    subscribed: source.subscribed === true,
+    dismissed: source.dismissed === true,
+  };
+}
+
+function loadNewsletterPromptState() {
+  try {
+    return normalizeNewsletterPromptState(JSON.parse(localStorage.getItem(NEWSLETTER_PROMPT_KEY) || "{}"));
+  } catch {
+    return normalizeNewsletterPromptState();
+  }
+}
+
+function saveNewsletterPromptState(nextState) {
+  localStorage.setItem(NEWSLETTER_PROMPT_KEY, JSON.stringify(normalizeNewsletterPromptState(nextState)));
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function shouldShowNewsletterPrompt() {
+  const promptState = loadNewsletterPromptState();
+  return !promptState.subscribed && !promptState.dismissed && !promptState.shown;
+}
+
+function newsletterCopy() {
+  if (currentLanguage === "en") {
+    return {
+      stepOneEyebrow: "a contranovela / newsletter",
+      stepOneTitle: "Stay close to the next review.",
+      stepOneBody: "Leave your email and receive new reviews, notes and weekly movements from the site without having to come looking for them.",
+      stepOnePrimary: "SUBSCRIBE ->",
+      stepOneSecondary: "KEEP READING",
+      stepTwoEyebrow: "one last attempt...",
+      stepTwoTitle: "You can still leave with something worth reading.",
+      stepTwoBody: "Leave your email and the next essay from a contranovela reaches you before the noise does. No account, no friction, just the text in your inbox.",
+      stepTwoPrimary: "ALL RIGHT, SAVE MY EMAIL ->",
+      stepTwoSecondary: "NO, I PREFER TO MISS IT",
+      close: "Close",
+      placeholder: "your@email.com",
+      invalidEmail: "Write a valid email address.",
+      saving: "Saving...",
+      saveError: "The subscription could not be saved right now.",
+    };
+  }
+  return {
+    stepOneEyebrow: "a contranovela / newsletter",
+    stepOneTitle: "Quédate cerca de la próxima reseña.",
+    stepOneBody: "Deja tu correo y recibe nuevas reseñas, notas y movimientos semanales de la web sin tener que venir a buscarlos.",
+    stepOnePrimary: "GUARDAR MI CORREO ->",
+    stepOneSecondary: "SEGUIR LEYENDO",
+    stepTwoEyebrow: "un último intento...",
+    stepTwoTitle: "Todavía puedes irte con algo que merezca la pena leer.",
+    stepTwoBody: "Déjame tu correo y el siguiente ensayo de a contranovela te llega antes de que lo tape el ruido. Sin cuenta, sin rodeos: solo el texto en tu bandeja.",
+    stepTwoPrimary: "VALE, GUARDA MI CORREO ->",
+    stepTwoSecondary: "NO, PREFIERO PERDÉRMELO",
+    close: "Cerrar",
+    placeholder: "tu@email.com",
+    invalidEmail: "Escribe un correo válido.",
+    saving: "Guardando...",
+    saveError: "No se ha podido guardar la suscripción ahora mismo.",
+  };
+}
+
+function closeNewsletterPrompt() {
+  document.querySelector(".newsletter-gate")?.remove();
+}
+
+async function completeNewsletterSubscription(email, feedback) {
+  const copy = newsletterCopy();
+  if (!isValidEmail(email)) {
+    if (feedback) feedback.textContent = copy.invalidEmail;
+    return false;
+  }
+  if (feedback) feedback.textContent = copy.saving;
+  try {
+    await saveNewsletterSubscriberToSupabase(email);
+    saveNewsletterPromptState({ shown: true, subscribed: true, dismissed: false });
+    newsletterDraftEmail = "";
+    closeNewsletterPrompt();
+    return true;
+  } catch (error) {
+    console.error(error);
+    if (feedback) {
+      feedback.textContent = error?.message === "newsletter_not_configured"
+        ? "La newsletter todavía no está conectada en Supabase."
+        : copy.saveError;
+    }
+    return false;
+  }
+}
+
+function dismissNewsletterPrompt() {
+  saveNewsletterPromptState({ shown: true, subscribed: false, dismissed: true });
+  closeNewsletterPrompt();
+}
+
+function openNewsletterPrompt(step = 1) {
+  if (document.querySelector(".newsletter-gate") || document.querySelector(".manager-gate") || state.view === "manager") return;
+  closeManagerGate();
+  const copy = newsletterCopy();
+  const gate = document.createElement("section");
+  gate.className = "newsletter-gate";
+  gate.setAttribute("role", "dialog");
+  gate.setAttribute("aria-modal", "true");
+  gate.innerHTML = `
+    <div class="newsletter-card ${step === 2 ? "is-second-step" : ""}">
+      <button class="newsletter-close" type="button" aria-label="${copy.close}">×</button>
+      <span class="newsletter-eyebrow">${step === 1 ? copy.stepOneEyebrow : copy.stepTwoEyebrow}</span>
+      <h2>${step === 1 ? copy.stepOneTitle : copy.stepTwoTitle}</h2>
+      <p>${step === 1 ? copy.stepOneBody : copy.stepTwoBody}</p>
+      <input class="newsletter-input" type="email" data-newsletter-email placeholder="${copy.placeholder}" autocomplete="email" value="${escapeAttr(newsletterDraftEmail)}" />
+      <small class="newsletter-feedback" data-newsletter-feedback></small>
+      <div class="newsletter-actions">
+        <button class="newsletter-primary" type="button" data-newsletter-subscribe>${step === 1 ? copy.stepOnePrimary : copy.stepTwoPrimary}</button>
+        <button class="newsletter-secondary" type="button" data-newsletter-dismiss>${step === 1 ? copy.stepOneSecondary : copy.stepTwoSecondary}</button>
+      </div>
+      <span class="newsletter-corner newsletter-corner-left" aria-hidden="true"></span>
+      <span class="newsletter-corner newsletter-corner-right" aria-hidden="true"></span>
+    </div>
+  `;
+  document.body.appendChild(gate);
+  const emailInput = gate.querySelector("[data-newsletter-email]");
+  const feedback = gate.querySelector("[data-newsletter-feedback]");
+  const submit = async () => {
+    newsletterDraftEmail = emailInput?.value.trim() || "";
+    await completeNewsletterSubscription(newsletterDraftEmail, feedback);
+  };
+  emailInput?.addEventListener("input", () => {
+    newsletterDraftEmail = emailInput.value;
+    if (feedback) feedback.textContent = "";
+  });
+  emailInput?.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submit();
+    }
+  });
+  gate.querySelector("[data-newsletter-subscribe]")?.addEventListener("click", submit);
+  gate.querySelector("[data-newsletter-dismiss]")?.addEventListener("click", () => {
+    if (step === 1) {
+      gate.remove();
+      openNewsletterPrompt(2);
+      return;
+    }
+    dismissNewsletterPrompt();
+  });
+  gate.querySelector(".newsletter-close")?.addEventListener("click", () => {
+    if (step === 1) {
+      gate.remove();
+      openNewsletterPrompt(2);
+      return;
+    }
+    dismissNewsletterPrompt();
+  });
+  emailInput?.focus();
+}
+
+function queueNewsletterPrompt() {
+  window.clearTimeout(newsletterPromptTimer);
+  closeNewsletterPrompt();
+  if (!shouldShowNewsletterPrompt() || state.view === "manager") return;
+  newsletterPromptTimer = window.setTimeout(() => {
+    if (!shouldShowNewsletterPrompt() || state.view === "manager") return;
+    saveNewsletterPromptState({ shown: true, subscribed: false, dismissed: false });
+    openNewsletterPrompt(1);
+  }, 4200);
 }
 
 function renderHome() {
@@ -867,6 +1044,7 @@ function renderHome() {
   els.menu.querySelectorAll("[data-category]").forEach((button) => {
     button.addEventListener("click", () => renderCategory(button.dataset.category));
   });
+  queueNewsletterPrompt();
 }
 
 function showPanel(label) {
@@ -881,6 +1059,8 @@ function showPanel(label) {
 }
 
 function requestManagerAccess() {
+  window.clearTimeout(newsletterPromptTimer);
+  closeNewsletterPrompt();
   closeManagerGate();
   const gate = document.createElement("section");
   gate.className = "manager-gate";
@@ -956,6 +1136,7 @@ function renderBio() {
       <blockquote>${bio.quote}</blockquote>
     </section>
   `;
+  queueNewsletterPrompt();
 }
 
 function renderCategory(categoryId) {
@@ -979,6 +1160,7 @@ function renderCards(category) {
     </section>
   `;
   bindRows();
+  queueNewsletterPrompt();
 }
 
 function renderCardRow(item) {
@@ -1008,6 +1190,7 @@ function renderScale(category) {
     </section>
   `;
   bindRows();
+  queueNewsletterPrompt();
 }
 
 function renderRanked(category, className) {
@@ -1021,6 +1204,7 @@ function renderRanked(category, className) {
     </section>
   `;
   bindRows();
+  queueNewsletterPrompt();
 }
 
 function renderRankRow(item, index, { interactive = true } = {}) {
@@ -1050,6 +1234,7 @@ function renderToday() {
     </section>
   `;
   bindRows();
+  queueNewsletterPrompt();
 }
 
 function renderFeature(label, item) {
@@ -1114,6 +1299,7 @@ function renderDetail(reviewId) {
   els.postView.querySelector('[data-nav="index"]').addEventListener("click", () => renderCategory(rawItem.section));
   els.postView.querySelector('[data-nav="prev"]').addEventListener("click", () => moveDetail(-1));
   els.postView.querySelector('[data-nav="next"]').addEventListener("click", () => moveDetail(1));
+  queueNewsletterPrompt();
 }
 
 function renderCover(item, size) {
@@ -1622,6 +1808,8 @@ function initCustomCursor() {
 }
 
 function renderManager(screen = "dashboard", options = {}) {
+  window.clearTimeout(newsletterPromptTimer);
+  closeNewsletterPrompt();
   state = { view: "manager", category: null, detail: null };
   managerState = {
     screen,

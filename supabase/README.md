@@ -15,6 +15,8 @@ This folder prepares the project for moving all editorial content out of the sta
   - Repairs mojibake text such as `MAÃ‘ANA`, `allÃ­`, broken arrows and Spanish accents in seeded/editorial data.
 - `migrations/004_add_editorial_cover_filters.sql`
   - Adds the editorial color-inspired cover filters: cream, dusty rose, nordic grey blue, muted forest and editorial black.
+- `migrations/005_add_newsletter_subscribers.sql`
+  - Creates the newsletter subscribers table and the policies needed to accept public email submissions from the popup.
 - `seed/reviews.json`
   - JSON export generated from the current local seed content.
   - Useful for audits, scripts or import tooling.
@@ -50,9 +52,10 @@ Both buckets accept `image/png` and `image/jpeg`.
 3. Paste and run `migrations/002_secure_manager_access.sql`.
 4. Paste and run `migrations/003_repair_text_encoding.sql` if any accent appears broken after seed/import.
 5. Paste and run `migrations/004_add_editorial_cover_filters.sql`.
-6. Create the manager user in Supabase Auth.
-7. Insert the manager user into `public.manager_users`.
-8. Fill `supabase-config.js`.
+6. Paste and run `migrations/005_add_newsletter_subscribers.sql`.
+7. Create the manager user in Supabase Auth.
+8. Insert the manager user into `public.manager_users`.
+9. Fill `supabase-config.js`.
 3. Confirm the resulting counts:
 
 ```sql

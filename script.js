@@ -1706,6 +1706,45 @@ function renderManagerDashboard() {
       returnScreen: "dashboard",
     }));
   });
+  getManagerScreen().querySelectorAll("[data-dashboard-visibility-toggle]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.dashboardVisibilityToggle;
+      const item = reviews.find((review) => review.id === id);
+      if (!item) return;
+      item.isPublished = item.isPublished === false;
+      persist();
+      try {
+        await persistReviewToSupabase(item);
+        supabaseStatus = getSupabaseClient() ? "online" : "local";
+        managerNotice = item.isPublished ? "RESENA VISIBLE" : "RESENA OCULTA";
+      } catch (error) {
+        console.error(error);
+        supabaseStatus = "error";
+        managerNotice = "VISIBILIDAD GUARDADA SOLO EN LOCAL";
+      }
+      renderManager("dashboard");
+    });
+  });
+  getManagerScreen().querySelectorAll("[data-dashboard-detail-toggle]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.dashboardDetailToggle;
+      const item = reviews.find((review) => review.id === id);
+      if (!item || !["escala", "no"].includes(item.section)) return;
+      const reviewAccessSettings = currentReviewAccessSettings();
+      reviewAccessSettings[id] = button.dataset.nextState === "true";
+      saveReviewAccessSettings(reviewAccessSettings);
+      try {
+        await saveReviewAccessToSupabase(reviewAccessSettings);
+        supabaseStatus = getSupabaseClient() ? "online" : "local";
+        managerNotice = reviewAccessSettings[id] ? "APERTURA ACTIVADA" : "APERTURA DESACTIVADA";
+      } catch (error) {
+        console.error(error);
+        supabaseStatus = "error";
+        managerNotice = "CAMBIO GUARDADO SOLO EN LOCAL";
+      }
+      renderManager("dashboard");
+    });
+  });
 }
 
 function renderManagerCategoryCard(category) {
@@ -1739,6 +1778,16 @@ function renderManagerCategoryLane(category) {
                     <small>${item.author} / ${item.score}</small>
                   </div>
                   <div>
+                    <button type="button" class="manager-eye-button ${item.isPublished !== false ? "is-visible" : "is-hidden"}" data-dashboard-visibility-toggle="${item.id}" aria-label="${item.isPublished !== false ? "Ocultar reseña" : "Mostrar reseña"}" title="${item.isPublished !== false ? "Hacer no visible" : "Hacer visible"}">
+                      <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+                        <path d="M2 12s3.8-6 10-6 10 6 10 6-3.8 6-10 6S2 12 2 12Z"></path>
+                        <circle cx="12" cy="12" r="3.2"></circle>
+                        ${item.isPublished !== false ? "" : `<path d="M4 4 20 20"></path>`}
+                      </svg>
+                    </button>
+                    ${["escala", "no"].includes(item.section)
+                      ? `<button type="button" data-dashboard-detail-toggle="${item.id}" data-next-state="${reviewCanOpen(item) ? "false" : "true"}">${reviewCanOpen(item) ? "desactivar" : "activar"}</button>`
+                      : ""}
                     <button type="button" data-dashboard-edit="${item.id}" data-category="${category.id}">editar</button>
                     <button type="button" data-dashboard-preview="${item.id}" data-category="${category.id}">preview</button>
                     <button type="button" data-dashboard-delete="${item.id}" data-category="${category.id}">eliminar</button>

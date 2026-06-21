@@ -96,6 +96,10 @@ a {
   width: 22px;
 }
 
+.custom-cursor.is-editing {
+  opacity: 0;
+}
+
 @media (pointer: coarse), (max-width: 760px) {
   .custom-cursor {
     display: none;
@@ -429,7 +433,28 @@ body.is-home .footer-links {
 }
 
 .manager-link-block {
+  gap: 14px;
   margin-top: 14px;
+}
+
+.manager-link-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.manager-link-grid label {
+  align-items: start;
+}
+
+.manager-link-grid input,
+.manager-link-grid select {
+  min-width: 0;
+  width: 100%;
+}
+
+.manager-link-grid input[name="linkText"] {
+  font-weight: 900;
 }
 
 .text-format-toolbar {

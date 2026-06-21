@@ -1446,6 +1446,19 @@ function bindManagerBlockControls(editor) {
       block.querySelectorAll("[data-text-align]").forEach((item) => item.classList.toggle("is-active", item === button));
     };
   });
+  editor.querySelectorAll("[name='linkText']").forEach((input) => {
+    const restoreDefaultLabel = () => {
+      if (!input.value.trim()) input.value = "añadir enlace";
+    };
+    input.addEventListener("blur", restoreDefaultLabel);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        restoreDefaultLabel();
+        editor.querySelector("[name='linkUrl']")?.focus();
+      }
+    });
+  });
   bindSortableBlocks(editor);
   editor.querySelectorAll("[name='articleImage']").forEach((input) => {
     input.oninput = () => {
@@ -1597,6 +1610,12 @@ function initCustomCursor() {
 
   document.addEventListener("mouseover", (event) => {
     cursor.classList.toggle("is-action", Boolean(event.target.closest("a, button, input, textarea, select, [data-review]")));
+  });
+  document.addEventListener("focusin", (event) => {
+    cursor.classList.toggle("is-editing", Boolean(event.target.closest("input, textarea, select")));
+  });
+  document.addEventListener("focusout", () => {
+    cursor.classList.remove("is-editing");
   });
 
   move();
@@ -2031,12 +2050,23 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
                 <strong>ENLACE FINAL</strong>
                 <span>bloque editorial al cierre de la reseña</span>
               </div>
-              <input name="linkText" value="${escapeAttr(value.linkText)}" placeholder="añadir enlace" />
-              <input name="linkUrl" value="${escapeAttr(value.linkUrl)}" placeholder="https://..." />
-              <label>mostrar enlace<select name="linkVisible">
-                <option value="false" ${!value.linkVisible ? "selected" : ""}>no visible</option>
-                <option value="true" ${value.linkVisible ? "selected" : ""}>visible</option>
-              </select></label>
+              <div class="manager-link-grid">
+                <label>
+                  texto del enlace
+                  <input name="linkText" value="${escapeAttr(value.linkText)}" placeholder="añadir enlace" />
+                </label>
+                <label>
+                  url del enlace
+                  <input name="linkUrl" value="${escapeAttr(value.linkUrl)}" placeholder="https://..." />
+                </label>
+                <label>
+                  mostrar enlace
+                  <select name="linkVisible">
+                    <option value="false" ${!value.linkVisible ? "selected" : ""}>no visible</option>
+                    <option value="true" ${value.linkVisible ? "selected" : ""}>visible</option>
+                  </select>
+                </label>
+              </div>
             </section>
           ` : ""}
         </div>

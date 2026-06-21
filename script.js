@@ -1,6 +1,7 @@
 ﻿const STORAGE_KEY = "acontranovela.reviews.v1";
 const BIO_STORAGE_KEY = "acontranovela.bio.v1";
 const SCALE_SETTINGS_KEY = "acontranovela.scale-settings.v1";
+const REVIEW_ACCESS_KEY = "acontranovela.review-access.v1";
 const LOCAL_MANAGER_PASSWORD = "LMF39";
 const SUPABASE_CONFIG = window.ACONTRANOVELA_SUPABASE || {};
 const coverFilterPresets = [
@@ -263,11 +264,50 @@ function sortByScoreDesc(items) {
   });
 }
 
+function sortByScoreAsc(items) {
+  return [...items].sort((first, second) => {
+    const scoreDiff = numericScore(first) - numericScore(second);
+    if (scoreDiff) return scoreDiff;
+    return String(first.title || "").localeCompare(String(second.title || ""), "es", { sensitivity: "base" });
+  });
+}
+
 function sectionReviews(section, { visibleOnly = false } = {}) {
-  const items = reviews.filter((item) => item.section === section);
-  if (section !== "escala") return items;
-  const ranked = sortByScoreDesc(items);
-  return visibleOnly ? ranked.slice(0, 10) : ranked;
+  const items = reviews.filter((item) => item.section === section && (!visibleOnly || item.isPublished !== false));
+  if (section === "escala") {
+    const ranked = sortByScoreDesc(items);
+    return visibleOnly ? ranked.slice(0, 10) : ranked;
+  }
+  if (section === "no") return sortByScoreAsc(items);
+  return items;
+}
+
+function extractLinkMeta(body = []) {
+  const entries = Array.isArray(body) ? body : [];
+  const markerEntry = entries.find((entry) => String(entry).trim().startsWith("[[link:"));
+  if (!markerEntry) return { text: "", url: "", visible: false };
+  const match = String(markerEntry).trim().match(/^\[\[link:([^|]*)\|([^|]*)\|(0|1)\]\]$/);
+  if (!match) return { text: "", url: "", visible: false };
+  try {
+    return {
+      text: decodeURIComponent(match[1] || ""),
+      url: decodeURIComponent(match[2] || ""),
+      visible: match[3] === "1",
+    };
+  } catch {
+    return { text: "", url: "", visible: false };
+  }
+}
+
+function buildLinkMarker(linkMeta = {}) {
+  const text = encodeURIComponent(linkMeta.text || "");
+  const url = encodeURIComponent(linkMeta.url || "");
+  const visible = linkMeta.visible ? "1" : "0";
+  return `[[link:${text}|${url}|${visible}]]`;
+}
+
+function sectionsWithEditorialLink(section) {
+  return ["textos", "flash"].includes(section);
 }
 
 function slug(value) {
@@ -383,6 +423,10 @@ async function initSupabaseData() {
     if (yo) saveBioContent(repairContentEncoding(yo));
     const escala = editorialPages.escala?.content;
     if (escala) saveScaleSettings(repairContentEncoding(escala));
+    const reviewAccess = editorialPages["review-access"]?.content;
+    const normalizedReviewAccess = reviewAccess ? normalizeReviewAccessSettings(repairContentEncoding(reviewAccess)) : {};
+    if (Object.keys(normalizedReviewAccess).length) saveReviewAccessSettings(normalizedReviewAccess);
+    else saveReviewAccessSettings(defaultLockedReviewAccessSettings());
     persist();
     supabaseStatus = "online";
     rerenderCurrentView();
@@ -421,6 +465,7 @@ async function ensureManagerSession(password) {
 }
 
 function fromSupabaseReview(row) {
+  const linkMeta = extractLinkMeta(row.body);
   return repairContentEncoding({
     id: row.id,
     section: row.section,
@@ -437,12 +482,24 @@ function fromSupabaseReview(row) {
     tone: row.cover_tone || "#efe7d8",
     coverFilter: row.cover_filter || "grayscale(1) contrast(1.05)",
     slot: row.slot || "",
-    body: Array.isArray(row.body) ? row.body : [],
+    isPublished: row.is_published !== false,
+    linkText: linkMeta.text || "",
+    linkUrl: linkMeta.url || "",
+    linkVisible: linkMeta.visible === true,
+    body: Array.isArray(row.body) ? row.body.filter((entry) => !String(entry).trim().startsWith("[[link:")) : [],
     images: Array.isArray(row.images) ? row.images : [],
   });
 }
 
 function toSupabaseReview(review, sortOrder) {
+  const nextBody = Array.isArray(review.body) ? [...review.body] : [];
+  if (sectionsWithEditorialLink(review.section)) {
+    nextBody.push(buildLinkMarker({
+      text: review.linkText || "",
+      url: review.linkUrl || "",
+      visible: review.linkVisible === true,
+    }));
+  }
   return {
     id: review.id,
     section: review.section,
@@ -459,10 +516,10 @@ function toSupabaseReview(review, sortOrder) {
     cover_tone: review.tone || "#efe7d8",
     cover_filter: review.coverFilter || "grayscale(1) contrast(1.05)",
     slot: review.slot || "",
-    body: review.body || [],
+    body: nextBody,
     images: review.images || [],
     sort_order: sortOrder,
-    is_published: true,
+    is_published: review.isPublished !== false,
   };
 }
 
@@ -507,6 +564,19 @@ async function saveScaleSettingsToSupabase(nextSettings) {
     .single();
   if (error) throw error;
   editorialPages.escala = data;
+}
+
+async function saveReviewAccessToSupabase(nextSettings) {
+  const client = getSupabaseClient();
+  if (!client) return;
+  const normalized = normalizeReviewAccessSettings(nextSettings);
+  const { data, error } = await client
+    .from("editorial_pages")
+    .upsert({ id: "review-access", title: "REVIEW ACCESS", content: normalized })
+    .select()
+    .single();
+  if (error) throw error;
+  editorialPages["review-access"] = data;
 }
 
 async function uploadCoverToSupabase(file, reviewId) {
@@ -554,6 +624,15 @@ function loadBioContent() {
   } catch {
     return normalizeBioContent(defaultBioContent);
   }
+}
+
+async function refreshManagerReviews() {
+  const client = getSupabaseClient();
+  if (!client) return;
+  const { data, error } = await client.from("reviews").select("*").order("sort_order");
+  if (error) throw error;
+  reviews = data.map(fromSupabaseReview);
+  persist();
 }
 
 function saveBioContent(nextBio) {
@@ -652,6 +731,43 @@ function loadScaleSettings() {
 
 function saveScaleSettings(nextSettings) {
   localStorage.setItem(SCALE_SETTINGS_KEY, JSON.stringify(normalizeScaleSettings(nextSettings)));
+}
+
+function normalizeReviewAccessSettings(source = {}) {
+  return Object.fromEntries(
+    Object.entries(source || {}).map(([key, value]) => [key, value === true])
+  );
+}
+
+function loadReviewAccessSettings() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(REVIEW_ACCESS_KEY) || "{}");
+    return normalizeReviewAccessSettings(stored);
+  } catch {
+    return {};
+  }
+}
+
+function defaultLockedReviewAccessSettings() {
+  return Object.fromEntries(
+    reviews
+      .filter((review) => ["escala", "no"].includes(review.section))
+      .map((review) => [review.id, false])
+  );
+}
+
+function saveReviewAccessSettings(nextSettings) {
+  localStorage.setItem(REVIEW_ACCESS_KEY, JSON.stringify(normalizeReviewAccessSettings(nextSettings)));
+}
+
+function currentReviewAccessSettings() {
+  return loadReviewAccessSettings();
+}
+
+function reviewCanOpen(review) {
+  if (!review) return false;
+  if (!["escala", "no"].includes(review.section)) return true;
+  return currentReviewAccessSettings()[review.id] === true;
 }
 
 function currentScaleSettings() {
@@ -799,6 +915,7 @@ function requestManagerAccess() {
         error.textContent = "Configura managerEmail en supabase-config.js.";
         return;
       }
+      if (hasRemoteAuth) await refreshManagerReviews();
       closeManagerGate();
       renderManager();
     } catch (authError) {
@@ -852,7 +969,7 @@ function renderCategory(categoryId) {
 }
 
 function renderCards(category) {
-  const items = reviews.filter((item) => item.section === category.id).map(displayReview);
+  const items = sectionReviews(category.id, { visibleOnly: true }).map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page cards-page">
       <h1>${t(category.id)}</h1>
@@ -885,7 +1002,7 @@ function renderScale(category) {
     <section class="category-page scale-page">
       <h1>${t(category.id)}</h1>
       <div class="scale-list">
-        ${items.map((item, index) => renderRankRow(item, index)).join("")}
+        ${items.map((item, index) => renderRankRow(item, index, { interactive: reviewCanOpen(item) })).join("")}
       </div>
       <div class="week-mark"><span>${t("week")}</span><strong>${formatScaleRange(scaleSettings)}</strong><em>${formatScaleMonthYear(scaleSettings)}</em></div>
     </section>
@@ -899,16 +1016,18 @@ function renderRanked(category, className) {
     <section class="category-page scale-page ${className}">
       <h1>${t(category.id)}</h1>
       <div class="scale-list">
-        ${items.map((item, index) => renderRankRow(item, index)).join("")}
+        ${items.map((item, index) => renderRankRow(item, index, { interactive: reviewCanOpen(item) })).join("")}
       </div>
     </section>
   `;
   bindRows();
 }
 
-function renderRankRow(item, index) {
+function renderRankRow(item, index, { interactive = true } = {}) {
+  const tag = interactive ? "button" : "div";
+  const attrs = interactive ? `type="button" data-review="${item.id}"` : `aria-disabled="true"`;
   return `
-    <button class="review-row rank-row" type="button" data-review="${item.id}">
+    <${tag} class="review-row rank-row ${interactive ? "" : "is-static"}" ${attrs}>
       <span class="rank">${String(index + 1).padStart(2, "0")}</span>
       ${renderCover(item, "mini")}
       <span class="rank-copy">
@@ -916,13 +1035,14 @@ function renderRankRow(item, index) {
         <em>${item.author}</em>
       </span>
       <span class="score">${item.score}</span>
-    </button>
+    </${tag}>
   `;
 }
 
 function renderToday() {
-  const today = displayReview(reviews.find((item) => item.section === "hoy-manana" && item.slot === "hoy"));
-  const tomorrow = displayReview(reviews.find((item) => item.section === "hoy-manana" && item.slot === "mañana"));
+  const todayItems = sectionReviews("hoy-manana", { visibleOnly: true });
+  const today = displayReview(todayItems.find((item) => item.slot === "hoy"));
+  const tomorrow = displayReview(todayItems.find((item) => item.slot === "mañana"));
   els.postList.innerHTML = `
     <section class="category-page today-page">
       ${renderFeature(t("today"), today)}
@@ -933,6 +1053,13 @@ function renderToday() {
 }
 
 function renderFeature(label, item) {
+  if (!item) {
+    return `
+      <section class="today-feature is-empty" aria-disabled="true">
+        <h1>${label}</h1>
+      </section>
+    `;
+  }
   return `
     <button class="today-feature" type="button" data-review="${item.id}">
       <h1>${label}</h1>
@@ -950,6 +1077,7 @@ function renderFeature(label, item) {
 function renderDetail(reviewId) {
   const rawItem = reviews.find((reviewItem) => reviewItem.id === reviewId);
   if (!rawItem) return renderHome();
+  if (!reviewCanOpen(rawItem)) return renderCategory(rawItem.section);
   const item = displayReview(rawItem);
   state = { view: "detail", category: rawItem.section, detail: rawItem.id };
   const category = categories.find((categoryItem) => categoryItem.id === rawItem.section);
@@ -998,6 +1126,9 @@ function renderCover(item, size) {
 }
 
 function renderArticleBlocks(item) {
+  const linkMarkup = sectionsWithEditorialLink(item.section) && item.linkVisible && item.linkUrl
+    ? `<p class="detail-linkline"><a href="${escapeAttr(item.linkUrl)}" target="_blank" rel="noreferrer">${repairTextEncoding(item.linkText || "añadir enlace")}</a></p>`
+    : "";
   const images = Array.isArray(item.images) && item.images.length ? item.images : [item.image];
   const hasInlineMarkers = Array.isArray(item.body) && item.body.some((entry) => /^\[\[image:(\d+)\]\]$/.test(String(entry).trim()));
   if (hasInlineMarkers) {
@@ -1008,17 +1139,19 @@ function renderArticleBlocks(item) {
           const image = images[Number(marker[1])];
           return image ? `<figure class="inline-photo"><img src="${image}" alt="" loading="lazy" /></figure>` : "";
         }
-        return `<p>${repairTextEncoding(entry)}</p>`;
+        const textBlock = parseTextBlockEntry(entry);
+        return `<p class="align-${textBlock.align}">${repairTextEncoding(textBlock.text)}</p>`;
       })
-      .join("");
+      .join("") + linkMarkup;
   }
   return item.body
     .map((paragraph, index) => {
       const image = images[index - 1];
       const media = image && index > 0 && index % 2 === 0 ? `<figure class="inline-photo"><img src="${image}" alt="" loading="lazy" /></figure>` : "";
-      return `${media}<p>${repairTextEncoding(paragraph)}</p>`;
+      const textBlock = parseTextBlockEntry(paragraph);
+      return `${media}<p class="align-${textBlock.align}">${repairTextEncoding(textBlock.text)}</p>`;
     })
-    .join("");
+    .join("") + linkMarkup;
 }
 
 function bindRows() {
@@ -1049,16 +1182,44 @@ function filterManagerLibrary(event) {
   });
 }
 
+function normalizeTextAlign(value) {
+  return ["left", "center", "right", "justify"].includes(value) ? value : "left";
+}
 
-function renderTextBlock(value = "") {
+function parseTextBlockEntry(entry) {
+  const raw = String(entry ?? "");
+  const marker = raw.trim().match(/^\[\[text:(left|center|right|justify)\|([\s\S]*)\]\]$/);
+  if (!marker) return { text: raw, align: "left" };
+  try {
+    return { text: decodeURIComponent(marker[2] || ""), align: normalizeTextAlign(marker[1]) };
+  } catch {
+    return { text: raw, align: "left" };
+  }
+}
+
+function buildTextBlockEntry(text, align = "left") {
+  return `[[text:${normalizeTextAlign(align)}|${encodeURIComponent(text || "")}]]`;
+}
+
+function renderTextBlock(value = "", align = "left") {
+  const normalizedAlign = normalizeTextAlign(align);
   return `
-    <section class="content-block manager-block" data-text-block data-block-type="text">
+    <section class="content-block manager-block is-align-${normalizedAlign}" data-text-block data-block-type="text">
       <button class="block-drag-tab" type="button" data-drag-handle aria-label="Arrastrar bloque">↕</button>
       <div class="block-handle">
         <strong>TEXTO</strong>
         <span>arrastra la pestaña o usa las flechas</span>
       </div>
-      <textarea name="bodyBlock" rows="5" placeholder="Escribe un bloque de la reseña">${value}</textarea>
+      <div class="text-format-toolbar" aria-label="Formato del texto">
+        ${[
+          ["left", "izquierda", "L"],
+          ["center", "centrado", "C"],
+          ["right", "derecha", "R"],
+          ["justify", "justificado", "J"],
+        ].map(([valueKey, label, short]) => `<button type="button" class="${normalizedAlign === valueKey ? "is-active" : ""}" data-text-align="${valueKey}" aria-label="${label}" title="${label}">${short}</button>`).join("")}
+      </div>
+      <input type="hidden" name="bodyAlign" value="${normalizedAlign}" />
+      <textarea class="aligned-textarea align-${normalizedAlign}" name="bodyBlock" rows="5" placeholder="Escribe un bloque de la reseña">${value}</textarea>
       <div class="block-actions">
         <button type="button" data-move-up>↑</button>
         <button type="button" data-move-down>↓</button>
@@ -1097,14 +1258,16 @@ function buildEditorBlocks(item) {
       if (marker) {
         return { type: "image", value: images[Number(marker[1])] || "" };
       }
-      return { type: "text", value: String(entry) };
+      const textBlock = parseTextBlockEntry(entry);
+      return { type: "text", value: textBlock.text, align: textBlock.align };
     });
   }
   const blocks = [];
   const body = Array.isArray(item.body) && item.body.length ? item.body : [""];
   const images = Array.isArray(item.images) && item.images.length ? item.images : [];
   body.forEach((paragraph, index) => {
-    blocks.push({ type: "text", value: paragraph });
+    const textBlock = parseTextBlockEntry(paragraph);
+    blocks.push({ type: "text", value: textBlock.text, align: textBlock.align });
     const image = images[index - 1];
     if (image && index > 0 && index % 2 === 0) {
       blocks.push({ type: "image", value: image });
@@ -1114,7 +1277,7 @@ function buildEditorBlocks(item) {
 }
 
 function renderEditorBlock(block) {
-  return block.type === "image" ? renderImageBlock(block.value) : renderTextBlock(block.value);
+  return block.type === "image" ? renderImageBlock(block.value) : renderTextBlock(block.value, block.align);
 }
 
 function renderBioTextBlock(lang, value = "") {
@@ -1266,6 +1429,22 @@ function bindManagerBlockControls(editor) {
   });
   editor.querySelectorAll("[data-remove-block]").forEach((button) => {
     button.onclick = () => button.closest("[data-text-block], [data-image-block]")?.remove();
+  });
+  editor.querySelectorAll("[data-text-align]").forEach((button) => {
+    button.onclick = () => {
+      const block = button.closest("[data-text-block]");
+      const align = button.dataset.textAlign;
+      const hidden = block?.querySelector('[name="bodyAlign"]');
+      const textarea = block?.querySelector('[name="bodyBlock"]');
+      if (!block || !hidden || !textarea) return;
+      const normalizedAlign = normalizeTextAlign(align);
+      hidden.value = normalizedAlign;
+      block.classList.remove("is-align-left", "is-align-center", "is-align-right", "is-align-justify");
+      block.classList.add(`is-align-${normalizedAlign}`);
+      textarea.classList.remove("align-left", "align-center", "align-right", "align-justify");
+      textarea.classList.add(`align-${normalizedAlign}`);
+      block.querySelectorAll("[data-text-align]").forEach((item) => item.classList.toggle("is-active", item === button));
+    };
   });
   bindSortableBlocks(editor);
   editor.querySelectorAll("[name='articleImage']").forEach((input) => {
@@ -1562,6 +1741,9 @@ function renderManagerCategory(categoryId) {
   const publicLimitNote = category.id === "escala"
     ? `<p class="manager-category-note">ESCALA se ordena automáticamente por nota de mayor a menor. En la web pública solo se muestran los 10 primeros; el resto queda guardado para edición.</p>`
     : "";
+  const publicAccessNote = ["escala", "no"].includes(category.id)
+    ? `<p class="manager-category-note">La apertura de cada reseña en la web pública se controla aquí mismo. Por ahora se han dejado todas desactivadas.</p>`
+    : "";
   const scaleSettings = currentScaleSettings();
   const scaleCalendarControls = category.id === "escala"
     ? `
@@ -1631,6 +1813,7 @@ function renderManagerCategory(categoryId) {
         <span>${items.length} documentos</span>
       </div>
       ${publicLimitNote}
+      ${publicAccessNote}
       ${scaleCalendarControls}
       <div class="manager-document-grid">
         ${items.map((item, index) => renderManagerDocumentCard(item, category.id === "escala" ? index : null)).join("") || `<p class="manager-empty">Todavia no hay reseñas en esta seccion.</p>`}
@@ -1652,6 +1835,45 @@ function renderManagerCategory(categoryId) {
       category: category.id,
       returnScreen: "category",
     }));
+  });
+  screen.querySelectorAll("[data-visibility-toggle]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.visibilityToggle;
+      const item = reviews.find((review) => review.id === id);
+      if (!item) return;
+      item.isPublished = item.isPublished === false;
+      persist();
+      try {
+        await persistReviewToSupabase(item);
+        supabaseStatus = getSupabaseClient() ? "online" : "local";
+        managerNotice = item.isPublished ? "RESENA VISIBLE" : "RESENA OCULTA";
+      } catch (error) {
+        console.error(error);
+        supabaseStatus = "error";
+        managerNotice = "VISIBILIDAD GUARDADA SOLO EN LOCAL";
+      }
+      renderManager("category", { category: category.id });
+    });
+  });
+  screen.querySelectorAll("[data-detail-toggle]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const id = button.dataset.detailToggle;
+      const item = reviews.find((review) => review.id === id);
+      if (!item || !["escala", "no"].includes(item.section)) return;
+      const reviewAccessSettings = currentReviewAccessSettings();
+      reviewAccessSettings[id] = button.dataset.nextState === "true";
+      saveReviewAccessSettings(reviewAccessSettings);
+      try {
+        await saveReviewAccessToSupabase(reviewAccessSettings);
+        supabaseStatus = getSupabaseClient() ? "online" : "local";
+        managerNotice = reviewAccessSettings[id] ? "APERTURA ACTIVADA" : "APERTURA DESACTIVADA";
+      } catch (error) {
+        console.error(error);
+        supabaseStatus = "error";
+        managerNotice = "CAMBIO GUARDADO SOLO EN LOCAL";
+      }
+      renderManager("category", { category: category.id });
+    });
   });
   if (category.id === "escala") bindScaleCalendarControls(screen);
 }
@@ -1718,6 +1940,18 @@ function bindScaleCalendarControls(screen) {
 
 function renderManagerDocumentCard(item, rank = null) {
   const scaleStatus = rank === null ? "" : `<span class="manager-scale-rank">${String(rank + 1).padStart(2, "0")}${rank < 10 ? " visible" : " archivo"}</span>`;
+  const visibilityToggle = `
+    <button type="button" class="manager-eye-button ${item.isPublished !== false ? "is-visible" : "is-hidden"}" data-visibility-toggle="${item.id}" aria-label="${item.isPublished !== false ? "Ocultar reseña" : "Mostrar reseña"}" title="${item.isPublished !== false ? "Hacer no visible" : "Hacer visible"}">
+      <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false">
+        <path d="M2 12s3.8-6 10-6 10 6 10 6-3.8 6-10 6S2 12 2 12Z"></path>
+        <circle cx="12" cy="12" r="3.2"></circle>
+        ${item.isPublished !== false ? "" : `<path d="M4 4 20 20"></path>`}
+      </svg>
+    </button>
+  `;
+  const detailToggle = ["escala", "no"].includes(item.section)
+    ? `<button type="button" data-detail-toggle="${item.id}" data-next-state="${reviewCanOpen(item) ? "false" : "true"}">${reviewCanOpen(item) ? "desactivar" : "activar"}</button>`
+    : "";
   return `
     <article class="manager-document-card" data-search-item="${`${item.title} ${item.author} ${item.summary}`.toLowerCase()}">
       ${scaleStatus}
@@ -1728,6 +1962,8 @@ function renderManagerDocumentCard(item, rank = null) {
         <small>${categoryLabel(item.section)} · ${item.score} · ${item.body?.length || 0} bloques</small>
       </div>
       <div class="manager-card-actions">
+        ${visibilityToggle}
+        ${detailToggle}
         <button type="button" data-edit="${item.id}">editar</button>
         <button type="button" data-preview="${item.id}">preview</button>
         <button type="button" data-delete="${item.id}">eliminar</button>
@@ -1756,6 +1992,11 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
     tone: item.tone || "#efe7d8",
     coverFilter: item.coverFilter || "grayscale(1) contrast(1.05)",
     slot: item.slot || "",
+    detailEnabled: reviewCanOpen(item),
+    isPublished: item.isPublished !== false,
+    linkText: item.linkText || "añadir enlace",
+    linkUrl: item.linkUrl || "",
+    linkVisible: item.linkVisible === true,
   };
   const screen = getManagerScreen();
   screen.innerHTML = `
@@ -1784,6 +2025,20 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
           <div class="block-stack article-block-stack" data-blocks>
             ${editorBlocks.map((block) => renderEditorBlock(block)).join("")}
           </div>
+          ${sectionsWithEditorialLink(value.section) ? `
+            <section class="content-block manager-block manager-link-block">
+              <div class="block-handle">
+                <strong>ENLACE FINAL</strong>
+                <span>bloque editorial al cierre de la reseña</span>
+              </div>
+              <input name="linkText" value="${escapeAttr(value.linkText)}" placeholder="añadir enlace" />
+              <input name="linkUrl" value="${escapeAttr(value.linkUrl)}" placeholder="https://..." />
+              <label>mostrar enlace<select name="linkVisible">
+                <option value="false" ${!value.linkVisible ? "selected" : ""}>no visible</option>
+                <option value="true" ${value.linkVisible ? "selected" : ""}>visible</option>
+              </select></label>
+            </section>
+          ` : ""}
         </div>
         <aside class="compose-side">
           <div class="cover-preview-large">${renderCover({ ...value, publisher: value.publisher || "editorial" }, "small")}</div>
@@ -1810,6 +2065,14 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
             <option value="hoy" ${value.slot === "hoy" ? "selected" : ""}>hoy</option>
             <option value="mañana" ${value.slot === "mañana" ? "selected" : ""}>mañana</option>
           </select></label>
+          <label>visibilidad<select name="isPublished">
+            <option value="true" ${value.isPublished ? "selected" : ""}>visible</option>
+            <option value="false" ${!value.isPublished ? "selected" : ""}>no visible</option>
+          </select></label>
+          <label>apertura detalle<select name="detailEnabled">
+            <option value="false" ${!value.detailEnabled ? "selected" : ""}>desactivada</option>
+            <option value="true" ${value.detailEnabled ? "selected" : ""}>activada</option>
+          </select><small class="field-note">En ESCALA y NO controla si la clasificación permite abrir la reseña. Ahora quedan desactivadas por defecto.</small></label>
           <div class="manager-actions">
             <button class="danger-button" type="button" data-delete ${item.id ? "" : "disabled"}>ELIMINAR</button>
           </div>
@@ -2019,6 +2282,7 @@ function renderManagerBioEditor() {
 
 
 async function saveEditedReview(_editor, rerender = true) {
+  const previous = reviews.find((item) => item.id === els.managerForm.querySelector('[name="id"]')?.value) || null;
   const titleField = els.managerForm.querySelector('[name="title"]');
   const authorField = els.managerForm.querySelector('[name="author"]');
   [titleField, authorField].forEach((field) => field?.setCustomValidity(""));
@@ -2039,12 +2303,19 @@ async function saveEditedReview(_editor, rerender = true) {
   const next = Object.fromEntries(formData.entries());
   next.id = next.id || `${next.section}-${slug(next.author)}-${slug(next.title)}-${Date.now()}`;
   next.slot = next.section === "hoy-manana" ? next.slot || "hoy" : next.slot || "";
+  next.isPublished = next.isPublished !== "false";
+  next.linkVisible = next.linkVisible === "true";
+  next.linkText = next.linkText || "añadir enlace";
+  next.linkUrl = next.linkUrl || "";
+  const nextDetailEnabled = next.detailEnabled === "true";
+  delete next.detailEnabled;
   next.body = [];
   next.images = [];
   els.managerForm.querySelectorAll("[data-block-type]").forEach((block) => {
     if (block.dataset.blockType === "text") {
       const text = block.querySelector("[name='bodyBlock']")?.value.trim();
-      if (text) next.body.push(text);
+      const align = normalizeTextAlign(block.querySelector("[name='bodyAlign']")?.value);
+      if (text) next.body.push(buildTextBlockEntry(text, align));
       return;
     }
     if (block.dataset.blockType === "image") {
@@ -2064,12 +2335,18 @@ async function saveEditedReview(_editor, rerender = true) {
     }
   }
   if (!next.body.some((entry) => !/^\[\[image:(\d+)\]\]$/.test(String(entry).trim()))) next.body.unshift("Nueva reseña pendiente de escritura.");
+  const reviewAccessSettings = currentReviewAccessSettings();
+  if (previous?.id && previous.id !== next.id) delete reviewAccessSettings[previous.id];
+  if (["escala", "no"].includes(next.section)) reviewAccessSettings[next.id] = nextDetailEnabled;
+  else delete reviewAccessSettings[next.id];
   const index = reviews.findIndex((item) => item.id === next.id);
   if (index >= 0) reviews[index] = next;
   else reviews.unshift(next);
   persist();
+  saveReviewAccessSettings(reviewAccessSettings);
   try {
     await persistReviewToSupabase(next);
+    await saveReviewAccessToSupabase(reviewAccessSettings);
     supabaseStatus = getSupabaseClient() ? "online" : "local";
     managerNotice = "RESENA GUARDADA";
   } catch (error) {
@@ -2086,8 +2363,12 @@ async function deleteReview(id, rerender = true) {
   if (!id) return;
   reviews = reviews.filter((item) => item.id !== id);
   persist();
+  const reviewAccessSettings = currentReviewAccessSettings();
+  delete reviewAccessSettings[id];
+  saveReviewAccessSettings(reviewAccessSettings);
   try {
     await deleteReviewFromSupabase(id);
+    await saveReviewAccessToSupabase(reviewAccessSettings);
     supabaseStatus = getSupabaseClient() ? "online" : "local";
     managerNotice = "RESENA ELIMINADA";
   } catch (error) {

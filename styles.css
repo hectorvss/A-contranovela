@@ -394,6 +394,90 @@ body.is-home .footer-links {
   width: 100%;
 }
 
+.review-row.is-static {
+  cursor: default;
+  pointer-events: none;
+  user-select: none;
+}
+
+.review-row.is-static:hover strong,
+.review-row.is-static:focus-visible strong,
+.review-row.is-static:active strong {
+  color: inherit;
+}
+
+.manager-eye-button {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  min-width: 42px;
+  padding-inline: 10px;
+}
+
+.manager-eye-button svg {
+  fill: none;
+  height: 15px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  width: 19px;
+}
+
+.manager-eye-button.is-hidden {
+  color: #6c6a66;
+}
+
+.manager-link-block {
+  margin-top: 14px;
+}
+
+.text-format-toolbar {
+  display: inline-grid;
+  gap: 8px;
+  grid-auto-flow: column;
+  justify-content: start;
+}
+
+.text-format-toolbar button {
+  background: transparent;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  min-height: 34px;
+  min-width: 34px;
+  padding: 0 10px;
+  text-transform: uppercase;
+}
+
+.text-format-toolbar button:hover,
+.text-format-toolbar button.is-active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.aligned-textarea.align-left,
+.manager-block.is-align-left textarea[name="bodyBlock"] {
+  text-align: left;
+}
+
+.aligned-textarea.align-center,
+.manager-block.is-align-center textarea[name="bodyBlock"] {
+  text-align: center;
+}
+
+.aligned-textarea.align-right,
+.manager-block.is-align-right textarea[name="bodyBlock"] {
+  text-align: right;
+}
+
+.aligned-textarea.align-justify,
+.manager-block.is-align-justify textarea[name="bodyBlock"] {
+  text-align: justify;
+}
+
 .card-row {
   align-items: start;
   grid-template-columns: 132px 1fr 82px;
@@ -407,6 +491,11 @@ body.is-home .footer-links {
   align-items: start;
   grid-template-columns: 76px 86px 1fr 92px;
   min-height: 104px;
+}
+
+.scale-page .rank,
+.scale-page .score {
+  font-size: clamp(17px, 2.45vw, 27px);
 }
 
 .row-copy,
@@ -517,7 +606,7 @@ body.is-home .footer-links {
 .week-mark strong {
   display: inline-block;
   font-family: var(--mono);
-  font-size: clamp(16px, 2.3vw, 24px);
+  font-size: clamp(15px, 2.1vw, 22px);
   font-variant-numeric: tabular-nums;
   font-weight: 400;
   letter-spacing: 0;
@@ -528,7 +617,7 @@ body.is-home .footer-links {
 .week-mark em {
   display: inline-block;
   font-family: var(--mono);
-  font-size: clamp(16px, 2.3vw, 24px);
+  font-size: clamp(15px, 2.1vw, 22px);
   font-style: normal;
   font-variant-numeric: tabular-nums;
   font-weight: 400;
@@ -660,6 +749,40 @@ body.is-home .footer-links {
   margin: 0 0 34px;
 }
 
+.detail-body p.align-left {
+  text-align: left;
+}
+
+.detail-body p.align-center {
+  text-align: center;
+}
+
+.detail-body p.align-right {
+  text-align: right;
+}
+
+.detail-body p.align-justify {
+  text-align: justify;
+}
+
+.detail-linkline {
+  margin-top: 10px;
+}
+
+.detail-linkline a {
+  color: inherit;
+  font-family: var(--mono);
+  font-size: clamp(18px, 2.25vw, 28px);
+  font-weight: 900;
+  line-height: 1.52;
+  text-decoration: none;
+}
+
+.detail-linkline a:hover,
+.detail-linkline a:focus-visible {
+  color: var(--hover-gray);
+}
+
 .inline-photo {
   margin: 10px 0 38px;
 }
@@ -705,7 +828,7 @@ body.is-home .footer-links {
   border: 1px solid var(--line);
   float: left;
   margin: 4px clamp(24px, 4vw, 42px) 20px 0;
-  width: clamp(180px, 22vw, 240px);
+  width: clamp(176px, 21.4vw, 236px);
 }
 
 .bio-square img {

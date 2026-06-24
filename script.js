@@ -1,4 +1,4 @@
-﻿const STORAGE_KEY = "acontranovela.reviews.v1";
+const STORAGE_KEY = "acontranovela.reviews.v1";
 const BIO_STORAGE_KEY = "acontranovela.bio.v1";
 const SCALE_SETTINGS_KEY = "acontranovela.scale-settings.v1";
 const NO_SETTINGS_KEY = "acontranovela.no-settings.v1";
@@ -91,7 +91,6 @@ const mojibakeMap = {
   "\u00c3\u009a": "Ú",
   "\u00c3\u00b1": "ñ",
   "\u00c3\u0091": "Ñ",
-  "\u00c3\u2018": "Ñ",
   "\u00c2\u00bf": "¿",
   "\u00c2\u00a1": "¡",
   "\u00c2\u00b7": "·",
@@ -1154,11 +1153,15 @@ function renderDetail(reviewId) {
   els.postView.querySelector('[data-nav="next"]').addEventListener("click", () => moveDetail(1));
 }
 
+function sanitizeCssTone(tone) {
+  return /^#[0-9a-fA-F]{3,8}$/.test(tone) ? tone : "#efe7d8";
+}
+
 function renderCover(item, size) {
   const coverFilter = item.coverFilter || "grayscale(1) contrast(1.05)";
   return `
-    <span class="book-cover ${size}" style="--cover-tone: ${item.tone}">
-      <img src="${item.image}" alt="${escapeAttr(`${item.title} - ${item.author}`)}" loading="lazy" style="filter:${coverFilter}" />
+    <span class="book-cover ${size}" style="--cover-tone: ${sanitizeCssTone(item.tone)}">
+      <img src="${item.image}" alt="${escapeAttr(`${item.title} - ${item.author}`)}" loading="lazy" style="filter:${escapeAttr(coverFilter)}" />
     </span>
   `;
 }
@@ -1654,6 +1657,7 @@ function initCustomCursor() {
 }
 
 function renderManager(screen = "dashboard", options = {}) {
+  managerNotice = "";
   state = { view: "manager", category: null, detail: null };
   managerState = {
     screen,
@@ -2296,7 +2300,7 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
           <label>páginas<input name="pages" value="${value.pages}" /></label>
           <label>portada principal<input name="image" value="${value.image}" data-cover-url /></label>
           <label class="file-picker-label">subir portada PNG/JPG<input type="file" accept="image/png,image/jpeg" data-cover-file /></label>
-          <input type="hidden" name="tone" value="${value.tone}" />
+          <input type="hidden" name="tone" value="${escapeAttr(value.tone)}" />
           <input type="hidden" name="coverFilter" value="${escapeAttr(value.coverFilter)}" data-cover-filter-value />
           <div class="cover-filter-control">
             <span>filtro portada</span>

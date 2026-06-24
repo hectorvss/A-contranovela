@@ -625,9 +625,9 @@ body.is-home .footer-links {
   margin-bottom: 5px;
 }
 
-.card-row--newest {
-  border: 2px solid var(--ink);
-  padding: 12px;
+.newest-tag b {
+  font-size: 11px;
+  letter-spacing: 0.1em;
 }
 
 .rank-row {

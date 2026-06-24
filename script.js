@@ -1111,7 +1111,7 @@ function renderCards(category) {
 
 function renderCardRow(item, isNewest = false) {
   return `
-    <button class="review-row card-row${isNewest ? " card-row--newest" : ""}" type="button" data-review="${item.id}">
+    <button class="review-row card-row" type="button" data-review="${item.id}">
       ${renderCover(item, "small")}
       <span class="row-copy">
         ${isNewest ? `<span class="newest-tag"><b>— última</b></span>` : ""}

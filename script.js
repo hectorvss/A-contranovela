@@ -909,7 +909,7 @@ function renderHome() {
   els.managerForm.classList.add("hidden");
   els.postList.innerHTML = "";
   els.menu.innerHTML =
-    `<div class="search-wrapper"><input class="search-input" type="text" placeholder="Encuentro |" autocomplete="off" spellcheck="false" id="homeSearch" /><ul class="search-results" id="searchResults"></ul></div>` +
+    `<div class="search-wrapper"><div class="search-bar" id="searchBar"><span class="search-label">encuentro</span><span class="search-typed" id="searchTyped"></span><span class="search-cursor" aria-hidden="true">|</span></div><input class="search-hidden-input" type="text" id="homeSearch" autocomplete="off" spellcheck="false" aria-label="Buscar" /><ul class="search-results" id="searchResults"></ul></div>` +
     categories
       .filter((category) => category.id !== "no")
       .map((category) => `<button class="menu-link" type="button" data-category="${category.id}">${t(category.id)}</button>`)
@@ -923,8 +923,12 @@ function renderHome() {
 function initHomeSearch() {
   if (_homeSearchCleanup) { _homeSearchCleanup(); _homeSearchCleanup = null; }
   const input = document.getElementById("homeSearch");
+  const typedEl = document.getElementById("searchTyped");
+  const searchBar = document.getElementById("searchBar");
   const resultsList = document.getElementById("searchResults");
-  if (!input || !resultsList) return;
+  if (!input || !typedEl || !searchBar || !resultsList) return;
+
+  searchBar.addEventListener("click", () => input.focus());
 
   function closeResults() {
     resultsList.innerHTML = "";
@@ -936,9 +940,11 @@ function initHomeSearch() {
   }
 
   input.addEventListener("input", () => {
-    const query = input.value.trim();
-    if (!query) { closeResults(); return; }
-    const normalized = query.toLowerCase();
+    const query = input.value;
+    typedEl.textContent = query ? " " + query : "";
+    const trimmed = query.trim();
+    if (!trimmed) { closeResults(); return; }
+    const normalized = trimmed.toLowerCase();
     const matches = reviews
       .filter((r) => r.isPublished !== false && r.title.toLowerCase().includes(normalized))
       .slice(0, 7);
@@ -953,7 +959,7 @@ function initHomeSearch() {
   });
 
   input.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") { input.value = ""; closeResults(); }
+    if (e.key === "Escape") { input.value = ""; typedEl.textContent = ""; closeResults(); }
     if (e.key === "Enter") {
       const first = resultsList.querySelector("[data-review]");
       if (first) first.click();

@@ -298,8 +298,13 @@ function sectionReviews(section, { visibleOnly = false } = {}) {
     return visibleOnly ? ranked.slice(0, 10) : ranked;
   }
   if (section === "no") return sortByScoreAsc(items);
-  if (section === "textos") return sortByAuthorLastName(items);
   if (section === "flash") return sortByAuthorLastName(items);
+  if (section === "textos") {
+    const sorted = sortByAuthorLastName(items);
+    const newest = items.reduce((best, r) => (r.sortOrder || 0) > (best?.sortOrder || 0) ? r : best, null);
+    if (!newest || !newest.sortOrder) return sorted;
+    return [newest, ...sorted.filter((r) => r.id !== newest.id)];
+  }
   return items;
 }
 
@@ -506,6 +511,7 @@ function fromSupabaseReview(row) {
     tone: row.cover_tone || "#efe7d8",
     coverFilter: row.cover_filter || "grayscale(1) contrast(1.05)",
     slot: row.slot || "",
+    sortOrder: row.sort_order || 0,
     isPublished: row.is_published !== false,
     linkText: linkMeta.text || "",
     linkUrl: linkMeta.url || "",
@@ -1089,23 +1095,26 @@ function renderCategory(categoryId) {
 }
 
 function renderCards(category) {
-  const items = sectionReviews(category.id, { visibleOnly: true }).map(displayReview);
+  const rawItems = sectionReviews(category.id, { visibleOnly: true });
+  const newestId = category.id === "textos" && rawItems[0]?.sortOrder ? rawItems[0].id : null;
+  const items = rawItems.map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page cards-page">
       <h1>${t(category.id)}</h1>
       <div class="card-list">
-        ${items.map(renderCardRow).join("")}
+        ${items.map((item) => renderCardRow(item, item.id === newestId)).join("")}
       </div>
     </section>
   `;
   bindRows();
 }
 
-function renderCardRow(item) {
+function renderCardRow(item, isNewest = false) {
   return `
     <button class="review-row card-row" type="button" data-review="${item.id}">
       ${renderCover(item, "small")}
       <span class="row-copy">
+        ${isNewest ? `<span class="newest-tag">— nuevo</span>` : ""}
         <strong>${item.author}</strong>
         <em>${item.title}</em>
         <span>${item.summary}</span>

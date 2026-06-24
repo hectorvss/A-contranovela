@@ -281,6 +281,16 @@ function sortByScoreAsc(items) {
   });
 }
 
+function sortByAuthorLastName(items) {
+  const lastName = (name) => {
+    const parts = String(name || "").trim().split(/\s+/);
+    return parts[parts.length - 1];
+  };
+  return [...items].sort((a, b) =>
+    lastName(a.author).localeCompare(lastName(b.author), "es", { sensitivity: "base" })
+  );
+}
+
 function sectionReviews(section, { visibleOnly = false } = {}) {
   const items = reviews.filter((item) => item.section === section && (!visibleOnly || item.isPublished !== false));
   if (section === "escala") {
@@ -288,6 +298,7 @@ function sectionReviews(section, { visibleOnly = false } = {}) {
     return visibleOnly ? ranked.slice(0, 10) : ranked;
   }
   if (section === "no") return sortByScoreAsc(items);
+  if (section === "textos") return sortByAuthorLastName(items);
   return items;
 }
 

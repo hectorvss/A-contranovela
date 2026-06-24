@@ -1114,7 +1114,7 @@ function renderCardRow(item, isNewest = false) {
     <button class="review-row card-row${isNewest ? " card-row--newest" : ""}" type="button" data-review="${item.id}">
       ${renderCover(item, "small")}
       <span class="row-copy">
-        ${isNewest ? `<span class="newest-tag">— última</span>` : ""}
+        ${isNewest ? `<span class="newest-tag"><b>— última</b></span>` : ""}
         <strong>${item.author}</strong>
         <em>${item.title}</em>
         <span>${item.summary}</span>

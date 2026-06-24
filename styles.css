@@ -626,7 +626,7 @@ body.is-home .footer-links {
 }
 
 .card-row--newest {
-  border: 1px solid var(--ink);
+  border: 2px solid var(--ink);
   padding: 12px;
 }
 

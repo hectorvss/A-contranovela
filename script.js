@@ -369,6 +369,7 @@ let editorialPages = {};
 let supabaseClient = null;
 let supabaseStatus = "local";
 let managerNotice = "";
+let _homeSearchCleanup = null;
 
 renderHome();
 initCustomCursor();
@@ -907,16 +908,64 @@ function renderHome() {
   els.postView.classList.add("hidden");
   els.managerForm.classList.add("hidden");
   els.postList.innerHTML = "";
-  els.menu.innerHTML = categories
-    .filter((category) => category.id !== "no")
-    .map((category) => `<button class="menu-link" type="button" data-category="${category.id}">${t(category.id)}</button>`)
-    .join("");
+  els.menu.innerHTML =
+    `<div class="search-wrapper"><input class="search-input" type="text" placeholder="Encuentro |" autocomplete="off" spellcheck="false" id="homeSearch" /><ul class="search-results" id="searchResults"></ul></div>` +
+    categories
+      .filter((category) => category.id !== "no")
+      .map((category) => `<button class="menu-link" type="button" data-category="${category.id}">${t(category.id)}</button>`)
+      .join("");
   els.menu.querySelectorAll("[data-category]").forEach((button) => {
     button.addEventListener("click", () => renderCategory(button.dataset.category));
   });
+  initHomeSearch();
+}
+
+function initHomeSearch() {
+  if (_homeSearchCleanup) { _homeSearchCleanup(); _homeSearchCleanup = null; }
+  const input = document.getElementById("homeSearch");
+  const resultsList = document.getElementById("searchResults");
+  if (!input || !resultsList) return;
+
+  function closeResults() {
+    resultsList.innerHTML = "";
+    resultsList.classList.remove("open");
+  }
+
+  function handleClickOutside(e) {
+    if (!input.closest(".search-wrapper").contains(e.target)) closeResults();
+  }
+
+  input.addEventListener("input", () => {
+    const query = input.value.trim();
+    if (!query) { closeResults(); return; }
+    const normalized = query.toLowerCase();
+    const matches = reviews
+      .filter((r) => r.isPublished !== false && r.title.toLowerCase().includes(normalized))
+      .slice(0, 7);
+    if (!matches.length) { closeResults(); return; }
+    resultsList.innerHTML = matches
+      .map((r) => `<li><button type="button" data-review="${r.id}"><strong>${r.title}</strong><em>${r.author}</em></button></li>`)
+      .join("");
+    resultsList.classList.add("open");
+    resultsList.querySelectorAll("[data-review]").forEach((btn) => {
+      btn.addEventListener("click", () => renderDetail(btn.dataset.review));
+    });
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { input.value = ""; closeResults(); }
+    if (e.key === "Enter") {
+      const first = resultsList.querySelector("[data-review]");
+      if (first) first.click();
+    }
+  });
+
+  document.addEventListener("click", handleClickOutside);
+  _homeSearchCleanup = () => document.removeEventListener("click", handleClickOutside);
 }
 
 function showPanel(label) {
+  if (_homeSearchCleanup) { _homeSearchCleanup(); _homeSearchCleanup = null; }
   document.body.classList.remove("is-home");
   els.index.classList.add("hidden");
   els.panel.classList.remove("hidden");

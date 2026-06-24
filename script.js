@@ -946,7 +946,10 @@ function initHomeSearch() {
     if (!trimmed) { closeResults(); return; }
     const normalized = trimmed.toLowerCase();
     const matches = reviews
-      .filter((r) => r.isPublished !== false && r.title.toLowerCase().includes(normalized))
+      .filter((r) => r.isPublished !== false && (
+        r.title.toLowerCase().includes(normalized) ||
+        r.author.toLowerCase().includes(normalized)
+      ))
       .slice(0, 7);
     if (!matches.length) { closeResults(); return; }
     resultsList.innerHTML = matches

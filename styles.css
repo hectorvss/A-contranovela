@@ -314,8 +314,14 @@ a {
   text-transform: uppercase;
 }
 
+#searchContainer {
+  bottom: clamp(60px, 10vh, 118px);
+  position: fixed;
+  right: clamp(6px, 8vw, 98px);
+  text-align: right;
+}
+
 .search-wrapper {
-  margin-bottom: 0.2em;
   position: relative;
 }
 
@@ -363,11 +369,11 @@ a {
   display: none;
   background: var(--paper);
   border-top: 1.5px solid var(--ink);
-  left: 0;
   list-style: none;
   margin: 4px 0 0;
   padding: 0;
   position: absolute;
+  right: 0;
   width: max-content;
   min-width: 200px;
   z-index: 20;
@@ -389,7 +395,7 @@ a {
   flex-direction: column;
   gap: 2px;
   padding: 8px 0;
-  text-align: left;
+  text-align: right;
   width: 100%;
 }
 

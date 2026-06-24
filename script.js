@@ -908,15 +908,21 @@ function renderHome() {
   els.postView.classList.add("hidden");
   els.managerForm.classList.add("hidden");
   els.postList.innerHTML = "";
-  els.menu.innerHTML =
-    `<div class="search-wrapper"><div class="search-bar" id="searchBar"><span class="search-label">encuentro</span><span class="search-typed" id="searchTyped"></span><span class="search-cursor" aria-hidden="true">|</span></div><input class="search-hidden-input" type="text" id="homeSearch" autocomplete="off" spellcheck="false" aria-label="Buscar" /><ul class="search-results" id="searchResults"></ul></div>` +
-    categories
-      .filter((category) => category.id !== "no")
-      .map((category) => `<button class="menu-link" type="button" data-category="${category.id}">${t(category.id)}</button>`)
-      .join("");
+  els.menu.innerHTML = categories
+    .filter((category) => category.id !== "no")
+    .map((category) => `<button class="menu-link" type="button" data-category="${category.id}">${t(category.id)}</button>`)
+    .join("");
   els.menu.querySelectorAll("[data-category]").forEach((button) => {
     button.addEventListener("click", () => renderCategory(button.dataset.category));
   });
+  let searchEl = document.getElementById("searchContainer");
+  if (!searchEl) {
+    searchEl = document.createElement("div");
+    searchEl.id = "searchContainer";
+    els.index.appendChild(searchEl);
+  }
+  searchEl.innerHTML = `<div class="search-bar" id="searchBar"><span class="search-label">encuentro</span><span class="search-typed" id="searchTyped"></span><span class="search-cursor" aria-hidden="true">|</span></div><input class="search-hidden-input" type="text" id="homeSearch" autocomplete="off" spellcheck="false" aria-label="Buscar" /><ul class="search-results" id="searchResults"></ul>`;
+  searchEl.style.display = "";
   initHomeSearch();
 }
 
@@ -975,6 +981,8 @@ function initHomeSearch() {
 
 function showPanel(label) {
   if (_homeSearchCleanup) { _homeSearchCleanup(); _homeSearchCleanup = null; }
+  const searchEl = document.getElementById("searchContainer");
+  if (searchEl) searchEl.style.display = "none";
   document.body.classList.remove("is-home");
   els.index.classList.add("hidden");
   els.panel.classList.remove("hidden");

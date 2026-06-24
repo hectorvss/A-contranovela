@@ -2277,7 +2277,7 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
             <input class="compose-title" name="en-title" value="${escapeAttr(value.enTitle)}" placeholder="Title in English" />
             <textarea class="compose-summary" name="en-summary" rows="3" placeholder="Summary in English">${value.enSummary}</textarea>
             <div class="compose-toolbar">
-              <button type="button" data-add-en-block>+ TEXT BLOCK</button>
+              <button type="button" data-add-en-block>+ BLOQUE TEXTO</button>
             </div>
             <div class="block-stack article-block-stack" data-en-blocks>
               ${enEditorBlocks.map((block) => renderEditorBlock(block)).join("")}

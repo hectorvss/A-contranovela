@@ -542,7 +542,11 @@ async function persistReviewToSupabase(review) {
   if (!client) return null;
   const sortOrder = Math.max(1, sectionReviews(review.section).findIndex((item) => item.id === review.id) + 1);
   const payload = toSupabaseReview(review, sortOrder);
-  const { data, error } = await client.from("reviews").upsert(payload).select().single();
+  let { data, error } = await client.from("reviews").upsert(payload).select().single();
+  if (error && (error.code === "42703" || error.message?.includes("translations"))) {
+    const { translations: _omit, ...payloadWithoutTranslations } = payload;
+    ({ data, error } = await client.from("reviews").upsert(payloadWithoutTranslations).select().single());
+  }
   if (error) throw error;
   return fromSupabaseReview(data);
 }

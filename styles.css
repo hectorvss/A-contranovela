@@ -1023,7 +1023,7 @@ body.is-home .footer-links {
 
 .manager-compose {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(460px, 540px);
+  grid-template-columns: minmax(0, 1fr) 360px;
   min-height: 760px;
 }
 
@@ -1031,7 +1031,7 @@ body.is-home .footer-links {
   background: #fffdfa;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 32px;
   padding: clamp(24px, 4vw, 52px);
 }
 
@@ -1336,7 +1336,7 @@ body.is-sorting-blocks {
 }
 
 .manager-app {
-  max-width: 1480px;
+  max-width: 1800px;
 }
 
 .manager-app-header {
@@ -1913,13 +1913,11 @@ body.is-sorting-blocks {
 
 .manager-lang-section {
   border-top: 2px solid var(--ink);
-  margin-top: 32px;
   padding-top: 20px;
 }
 
 .manager-lang-section:first-child {
   border-top: none;
-  margin-top: 0;
   padding-top: 0;
 }
 
@@ -1944,7 +1942,7 @@ body.is-sorting-blocks {
   background: #f8f8f5;
   border: 1px solid var(--line);
   border-top: 2px solid var(--ink);
-  padding: 18px;
+  padding: 24px;
 }
 
 .bio-editor-grid {

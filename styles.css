@@ -618,11 +618,16 @@ body.is-home .footer-links {
 .newest-tag {
   color: var(--ink);
   display: block;
-  font-family: var(--mono);
+  font-family: var(--heavy);
   font-size: 10px;
   font-weight: 900;
   letter-spacing: 0.06em;
   margin-bottom: 5px;
+}
+
+.card-row--newest {
+  border: 1px solid var(--ink);
+  padding: 12px;
 }
 
 .rank-row {

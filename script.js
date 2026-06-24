@@ -1243,10 +1243,8 @@ function renderTextBlock(value = "", align = "left") {
   const normalizedAlign = normalizeTextAlign(align);
   return `
     <section class="content-block manager-block is-align-${normalizedAlign}" data-text-block data-block-type="text">
-      <button class="block-drag-tab" type="button" data-drag-handle aria-label="Arrastrar bloque">↕</button>
       <div class="block-handle">
         <strong>TEXTO</strong>
-        <span>arrastra la pestaña o usa las flechas</span>
       </div>
       <div class="text-format-toolbar" aria-label="Formato del texto">
         ${[
@@ -1270,12 +1268,10 @@ function renderTextBlock(value = "", align = "left") {
 function renderImageBlock(value = "") {
   return `
     <section class="image-block manager-block" data-image-block data-block-type="image">
-      <button class="block-drag-tab" type="button" data-drag-handle aria-label="Arrastrar foto">↕</button>
       <img src="${value}" alt="" loading="lazy" />
       <div class="image-block-fields">
         <div class="block-handle">
           <strong>FOTO</strong>
-          <span>pega URL y ordenala por arrastre</span>
         </div>
         <input name="articleImage" value="${value}" placeholder="URL de imagen" />
       </div>
@@ -1321,10 +1317,8 @@ function renderEditorBlock(block) {
 function renderBioTextBlock(lang, value = "") {
   return `
     <section class="content-block manager-block bio-text-block" data-bio-text-block>
-      <button class="block-drag-tab" type="button" data-drag-handle aria-label="Reordenar bloque">↕</button>
       <div class="block-handle">
         <strong>BLOQUE</strong>
-        <span>arrastra, toca o usa las flechas</span>
       </div>
       <textarea name="${lang}-bio-block" rows="5" placeholder="Escribe un bloque de autobiografía">${value}</textarea>
       <div class="block-actions">

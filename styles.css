@@ -618,16 +618,11 @@ body.is-home .footer-links {
 .newest-tag {
   color: var(--ink);
   display: block;
-  font-family: var(--heavy);
-  font-size: 10px;
+  font-family: var(--mono);
+  font-size: clamp(14px, 1.4vw, 20px);
   font-weight: 900;
-  letter-spacing: 0.06em;
-  margin-bottom: 5px;
-}
-
-.newest-tag b {
-  font-size: 11px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0;
+  margin-bottom: 6px;
 }
 
 .rank-row {

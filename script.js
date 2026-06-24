@@ -919,7 +919,7 @@ function renderHome() {
   if (!searchEl) {
     searchEl = document.createElement("div");
     searchEl.id = "searchContainer";
-    els.index.appendChild(searchEl);
+    document.body.appendChild(searchEl);
   }
   searchEl.innerHTML = `<div class="search-bar" id="searchBar"><span class="search-label">encuentro</span><span class="search-typed" id="searchTyped"></span><span class="search-cursor" aria-hidden="true">|</span></div><input class="search-hidden-input" type="text" id="homeSearch" autocomplete="off" spellcheck="false" aria-label="Buscar" /><ul class="search-results" id="searchResults"></ul>`;
   searchEl.style.display = "";

@@ -299,6 +299,7 @@ function sectionReviews(section, { visibleOnly = false } = {}) {
   }
   if (section === "no") return sortByScoreAsc(items);
   if (section === "textos") return sortByAuthorLastName(items);
+  if (section === "flash") return sortByAuthorLastName(items);
   return items;
 }
 

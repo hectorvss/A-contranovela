@@ -927,7 +927,7 @@ function renderHome() {
   searchEl.innerHTML = `<div class="search-bar" id="searchBar"><span class="search-label">encuentro</span><span class="search-typed" id="searchTyped"></span><span class="search-cursor" aria-hidden="true">|</span></div><input class="search-hidden-input" type="text" id="homeSearch" autocomplete="off" spellcheck="false" aria-label="Buscar" /><ul class="search-results" id="searchResults"></ul>`;
   const isMobile = window.innerWidth <= 760;
   if (isMobile) {
-    searchEl.style.cssText = "position:fixed;text-align:center;z-index:50;";
+    searchEl.style.cssText = "position:fixed;left:24px;right:24px;text-align:center;z-index:50;";
   } else {
     searchEl.style.cssText = "position:fixed;right:clamp(6px,8vw,98px);text-align:right;z-index:50;";
   }
@@ -935,16 +935,6 @@ function renderHome() {
     const homeTop = document.querySelector(".home-top");
     if (homeTop && searchEl) {
       searchEl.style.top = (homeTop.getBoundingClientRect().bottom + 8) + "px";
-    }
-    if (isMobile) {
-      const siteName = document.querySelector(".site-name");
-      const searchLabel = document.querySelector(".search-label");
-      if (siteName && searchEl && searchLabel) {
-        const siteCenter = siteName.getBoundingClientRect().left + siteName.getBoundingClientRect().width / 2;
-        const labelWidth = searchLabel.getBoundingClientRect().width;
-        searchEl.style.left = (siteCenter - labelWidth / 2) + "px";
-        searchEl.style.transform = "none";
-      }
     }
   });
   initHomeSearch();

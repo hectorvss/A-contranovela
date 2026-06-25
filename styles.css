@@ -2284,14 +2284,13 @@ body.is-sorting-blocks {
   }
 
   .search-results {
-    left: 50%;
+    left: 0;
     max-height: 40vh;
-    min-width: 80vw;
     overflow-y: auto;
-    right: auto;
+    right: 0;
     text-align: left;
-    transform: translateX(-50%);
-    width: 80vw;
+    transform: none;
+    width: 100%;
   }
 
   .search-results li button {

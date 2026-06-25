@@ -2275,6 +2275,10 @@ body.is-sorting-blocks {
     display: none;
   }
 
+  .row-copy .newest-tag {
+    display: block;
+  }
+
   .score,
   .detail-score {
     font-size: 17px;

@@ -2283,6 +2283,10 @@ body.is-sorting-blocks {
     display: block;
   }
 
+  .search-bar {
+    margin-left: 1ch;
+  }
+
   .search-results {
     left: 0;
     max-height: 40vh;

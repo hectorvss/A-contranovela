@@ -927,9 +927,9 @@ function renderHome() {
   searchEl.innerHTML = `<div class="search-bar" id="searchBar"><span class="search-label">encuentro</span><span class="search-typed" id="searchTyped"></span><span class="search-cursor" aria-hidden="true">|</span></div><input class="search-hidden-input" type="text" id="homeSearch" autocomplete="off" spellcheck="false" aria-label="Buscar" /><ul class="search-results" id="searchResults"></ul>`;
   searchEl.style.cssText = "position:fixed;right:clamp(6px,8vw,98px);text-align:right;z-index:50;";
   requestAnimationFrame(() => {
-    const textosBtn = els.menu.querySelector(".menu-link");
-    if (textosBtn && searchEl) {
-      searchEl.style.top = textosBtn.getBoundingClientRect().top + "px";
+    const homeTop = document.querySelector(".home-top");
+    if (homeTop && searchEl) {
+      searchEl.style.top = (homeTop.getBoundingClientRect().bottom + 8) + "px";
     }
   });
   initHomeSearch();

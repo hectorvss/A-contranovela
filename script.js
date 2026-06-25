@@ -1091,27 +1091,37 @@ function renderCategory(categoryId) {
   return renderCards(category);
 }
 
+function formatNewestDate(createdAt) {
+  if (!createdAt) return "";
+  const d = new Date(createdAt);
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const year = String(d.getUTCFullYear()).slice(-2);
+  return `${month}.${year}`;
+}
+
 function renderCards(category) {
   const rawItems = sectionReviews(category.id, { visibleOnly: true });
-  const newestId = ["textos", "flash"].includes(category.id) && rawItems[0]?.createdAt ? rawItems[0].id : null;
+  const newestRaw = ["textos", "flash"].includes(category.id) && rawItems[0]?.createdAt ? rawItems[0] : null;
+  const newestId = newestRaw?.id || null;
+  const newestDate = newestRaw ? formatNewestDate(newestRaw.createdAt) : "";
   const items = rawItems.map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page cards-page">
       <h1>${t(category.id)}</h1>
       <div class="card-list">
-        ${items.map((item) => renderCardRow(item, item.id === newestId)).join("")}
+        ${items.map((item) => renderCardRow(item, item.id === newestId, newestDate)).join("")}
       </div>
     </section>
   `;
   bindRows();
 }
 
-function renderCardRow(item, isNewest = false) {
+function renderCardRow(item, isNewest = false, newestDate = "") {
   return `
     <button class="review-row card-row" type="button" data-review="${item.id}">
       ${renderCover(item, "small")}
       <span class="row-copy">
-        ${isNewest ? `<span class="newest-tag"><b>— última</b></span>` : ""}
+        ${isNewest ? `<span class="newest-tag"><b>— última / ${newestDate}</b></span>` : ""}
         <strong>${item.author}</strong>
         <em>${item.title}</em>
         <span>${item.summary}</span>

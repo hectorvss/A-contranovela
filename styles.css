@@ -2201,6 +2201,10 @@ body.is-sorting-blocks {
     width: 56px;
   }
 
+  .home-actions .circle-solid {
+    width: 56px;
+  }
+
   .home-actions .language-toggle {
     left: 50%;
     right: auto;

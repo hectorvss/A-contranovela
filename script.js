@@ -298,8 +298,7 @@ function sectionReviews(section, { visibleOnly = false } = {}) {
     return visibleOnly ? ranked.slice(0, 10) : ranked;
   }
   if (section === "no") return sortByScoreAsc(items);
-  if (section === "flash") return sortByAuthorLastName(items);
-  if (section === "textos") {
+  if (section === "textos" || section === "flash") {
     const sorted = sortByAuthorLastName(items);
     const newest = items.reduce((best, r) => (r.createdAt || "") > (best?.createdAt || "") ? r : best, null);
     if (!newest || !newest.createdAt) return sorted;
@@ -1097,7 +1096,7 @@ function renderCategory(categoryId) {
 
 function renderCards(category) {
   const rawItems = sectionReviews(category.id, { visibleOnly: true });
-  const newestId = category.id === "textos" && rawItems[0]?.createdAt ? rawItems[0].id : null;
+  const newestId = ["textos", "flash"].includes(category.id) && rawItems[0]?.createdAt ? rawItems[0].id : null;
   const items = rawItems.map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page cards-page">

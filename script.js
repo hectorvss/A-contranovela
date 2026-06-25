@@ -356,7 +356,6 @@ const els = {
   rightLabel: document.querySelector("#managerButton"),
   homeButton: document.querySelector("#homeButton"),
   noButton: document.querySelector("#noButton"),
-  languageToggle: document.querySelector("#languageToggle"),
   footerManager: document.querySelector("#footerManager"),
 };
 
@@ -382,7 +381,6 @@ initSupabaseData();
 els.homeButton.addEventListener("click", renderBio);
 els.noButton.addEventListener("click", () => renderCategory("no"));
 els.backButton.addEventListener("click", goBack);
-els.languageToggle.addEventListener("click", toggleLanguage);
 els.footerManager.addEventListener("click", requestManagerAccess);
 window.addEventListener("keydown", (event) => {
   if (event.target?.closest?.("input, textarea, select")) return;
@@ -906,7 +904,6 @@ function renderHome() {
   document.body.classList.add("is-home");
   document.documentElement.lang = currentLanguage;
   els.homeButton.textContent = t("yo");
-  els.languageToggle.textContent = t("languageButton");
   const thereLink = document.querySelector("#thereLink") || document.querySelector(".footer-links a:nth-of-type(3)");
   if (thereLink) thereLink.textContent = t("socialThere");
   els.index.classList.remove("hidden");

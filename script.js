@@ -938,11 +938,12 @@ function renderHome() {
     }
     if (isMobile) {
       const siteName = document.querySelector(".site-name");
-      if (siteName && searchEl) {
-        const rect = siteName.getBoundingClientRect();
-        const center = rect.left + rect.width / 2;
-        searchEl.style.left = center + "px";
-        searchEl.style.transform = "translateX(-50%)";
+      const searchLabel = document.querySelector(".search-label");
+      if (siteName && searchEl && searchLabel) {
+        const siteCenter = siteName.getBoundingClientRect().left + siteName.getBoundingClientRect().width / 2;
+        const labelWidth = searchLabel.getBoundingClientRect().width;
+        searchEl.style.left = (siteCenter - labelWidth / 2) + "px";
+        searchEl.style.transform = "none";
       }
     }
   });

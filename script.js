@@ -301,8 +301,8 @@ function sectionReviews(section, { visibleOnly = false } = {}) {
   if (section === "flash") return sortByAuthorLastName(items);
   if (section === "textos") {
     const sorted = sortByAuthorLastName(items);
-    const newest = items.reduce((best, r) => (r.sortOrder || 0) > (best?.sortOrder || 0) ? r : best, null);
-    if (!newest || !newest.sortOrder) return sorted;
+    const newest = items.reduce((best, r) => (r.createdAt || "") > (best?.createdAt || "") ? r : best, null);
+    if (!newest || !newest.createdAt) return sorted;
     return [newest, ...sorted.filter((r) => r.id !== newest.id)];
   }
   return items;
@@ -512,6 +512,7 @@ function fromSupabaseReview(row) {
     coverFilter: row.cover_filter || "grayscale(1) contrast(1.05)",
     slot: row.slot || "",
     sortOrder: row.sort_order || 0,
+    createdAt: row.created_at || "",
     isPublished: row.is_published !== false,
     linkText: linkMeta.text || "",
     linkUrl: linkMeta.url || "",
@@ -1096,7 +1097,7 @@ function renderCategory(categoryId) {
 
 function renderCards(category) {
   const rawItems = sectionReviews(category.id, { visibleOnly: true });
-  const newestId = category.id === "textos" && rawItems[0]?.sortOrder ? rawItems[0].id : null;
+  const newestId = category.id === "textos" && rawItems[0]?.createdAt ? rawItems[0].id : null;
   const items = rawItems.map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page cards-page">

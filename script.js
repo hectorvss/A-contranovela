@@ -1229,7 +1229,7 @@ function renderDetail(reviewId) {
       <dl class="book-meta">
         <div><dt>EDITORIAL:</dt><dd>${item.publisher}</dd></div>
         <div><dt>AÑO:</dt><dd>${item.year}</dd></div>
-        <div><dt>TRADUCCIÓN:</dt><dd>${item.translator}</dd></div>
+        ${currentLanguage === "es" ? `<div><dt>TRADUCCIÓN:</dt><dd>${item.translator}</dd></div>` : ""}
         <div><dt>PÁGINAS:</dt><dd>${item.pages}</dd></div>
       </dl>
       <div class="detail-body">

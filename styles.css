@@ -2283,6 +2283,21 @@ body.is-sorting-blocks {
     display: block;
   }
 
+  .search-results {
+    left: 50%;
+    max-height: 40vh;
+    min-width: 80vw;
+    overflow-y: auto;
+    right: auto;
+    text-align: left;
+    transform: translateX(-50%);
+    width: 80vw;
+  }
+
+  .search-results li button {
+    text-align: left;
+  }
+
   .score,
   .detail-score {
     font-size: 17px;

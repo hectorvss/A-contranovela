@@ -2283,6 +2283,15 @@ body.is-sorting-blocks {
     display: block;
   }
 
+  #searchContainer {
+    pointer-events: none;
+  }
+
+  #searchContainer .search-bar,
+  #searchContainer .search-results {
+    pointer-events: auto;
+  }
+
   .search-bar {
     margin-left: 2ch;
   }

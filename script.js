@@ -815,8 +815,8 @@ function loadReviewAccessSettings() {
 function defaultLockedReviewAccessSettings() {
   return Object.fromEntries(
     reviews
-      .filter((review) => ["escala", "no"].includes(review.section))
-      .map((review) => [review.id, false])
+      .filter((review) => ["escala", "no", "hoy-manana"].includes(review.section))
+      .map((review) => [review.id, review.section === "hoy-manana" ? true : false])
   );
 }
 
@@ -830,8 +830,10 @@ function currentReviewAccessSettings() {
 
 function reviewCanOpen(review) {
   if (!review) return false;
-  if (!["escala", "no"].includes(review.section)) return true;
-  return currentReviewAccessSettings()[review.id] === true;
+  if (!["escala", "no", "hoy-manana"].includes(review.section)) return true;
+  const setting = currentReviewAccessSettings()[review.id];
+  if (review.section === "hoy-manana") return setting !== false;
+  return setting === true;
 }
 
 function currentScaleSettings() {
@@ -1164,7 +1166,7 @@ function renderScale(category) {
 
 function renderRanked(category, className) {
   const items = sectionReviews(category.id).map(displayReview);
-  const noSettings = currentNoSettings();
+  const noSettings = autoCurrentWeekSettings();
   els.postList.innerHTML = `
     <section class="category-page scale-page ${className}">
       <h1>${t(category.id)}</h1>
@@ -1882,7 +1884,7 @@ function renderManagerDashboard() {
     button.addEventListener("click", async () => {
       const id = button.dataset.dashboardDetailToggle;
       const item = reviews.find((review) => review.id === id);
-      if (!item || !["escala", "no"].includes(item.section)) return;
+      if (!item || !["escala", "no", "hoy-manana"].includes(item.section)) return;
       const reviewAccessSettings = currentReviewAccessSettings();
       reviewAccessSettings[id] = button.dataset.nextState === "true";
       saveReviewAccessSettings(reviewAccessSettings);
@@ -1938,7 +1940,7 @@ function renderManagerCategoryLane(category) {
                         ${item.isPublished !== false ? "" : `<path d="M4 4 20 20"></path>`}
                       </svg>
                     </button>
-                    ${["escala", "no"].includes(item.section)
+                    ${["escala", "no", "hoy-manana"].includes(item.section)
                       ? `<button type="button" data-dashboard-detail-toggle="${item.id}" data-next-state="${reviewCanOpen(item) ? "false" : "true"}">${reviewCanOpen(item) ? "desactivar" : "activar"}</button>`
                       : ""}
                     <button type="button" data-dashboard-edit="${item.id}" data-category="${category.id}">editar</button>
@@ -1962,7 +1964,7 @@ function renderManagerCategory(categoryId) {
   const publicLimitNote = category.id === "escala"
     ? `<p class="manager-category-note">ESCALA se ordena automáticamente por nota de mayor a menor. En la web pública solo se muestran los 10 primeros; el resto queda guardado para edición.</p>`
     : "";
-  const publicAccessNote = ["escala", "no"].includes(category.id)
+  const publicAccessNote = ["escala", "no", "hoy-manana"].includes(category.id)
     ? `<p class="manager-category-note">La apertura de cada reseña en la web pública se controla aquí mismo. Por ahora se han dejado todas desactivadas.</p>`
     : "";
   const scaleSettings = currentScaleSettings();
@@ -2134,7 +2136,7 @@ function renderManagerCategory(categoryId) {
     button.addEventListener("click", async () => {
       const id = button.dataset.detailToggle;
       const item = reviews.find((review) => review.id === id);
-      if (!item || !["escala", "no"].includes(item.section)) return;
+      if (!item || !["escala", "no", "hoy-manana"].includes(item.section)) return;
       const reviewAccessSettings = currentReviewAccessSettings();
       reviewAccessSettings[id] = button.dataset.nextState === "true";
       saveReviewAccessSettings(reviewAccessSettings);
@@ -2285,7 +2287,7 @@ function renderManagerDocumentCard(item, rank = null) {
       </svg>
     </button>
   `;
-  const detailToggle = ["escala", "no"].includes(item.section)
+  const detailToggle = ["escala", "no", "hoy-manana"].includes(item.section)
     ? `<button type="button" data-detail-toggle="${item.id}" data-next-state="${reviewCanOpen(item) ? "false" : "true"}">${reviewCanOpen(item) ? "desactivar" : "activar"}</button>`
     : "";
   return `
@@ -2730,7 +2732,7 @@ async function saveEditedReview(_editor, rerender = true) {
   if (!next.body.some((entry) => !/^\[\[image:(\d+)\]\]$/.test(String(entry).trim()))) next.body.unshift("Nueva reseña pendiente de escritura.");
   const reviewAccessSettings = currentReviewAccessSettings();
   if (previous?.id && previous.id !== next.id) delete reviewAccessSettings[previous.id];
-  if (["escala", "no"].includes(next.section)) reviewAccessSettings[next.id] = nextDetailEnabled;
+  if (["escala", "no", "hoy-manana"].includes(next.section)) reviewAccessSettings[next.id] = nextDetailEnabled;
   else delete reviewAccessSettings[next.id];
   const index = reviews.findIndex((item) => item.id === next.id);
   if (index >= 0) reviews[index] = next;

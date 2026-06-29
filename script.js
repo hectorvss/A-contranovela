@@ -1136,9 +1136,20 @@ function renderCardRow(item, isNewest = false, newestDate = "") {
   `;
 }
 
+function autoCurrentWeekSettings() {
+  const now = new Date();
+  const jan4 = new Date(Date.UTC(now.getUTCFullYear(), 0, 4));
+  const day = jan4.getUTCDay() || 7;
+  const weekStart = new Date(jan4);
+  weekStart.setUTCDate(jan4.getUTCDate() - day + 1);
+  const weekNum = Math.floor((now - weekStart) / (7 * 24 * 60 * 60 * 1000)) + 1;
+  const week = `${now.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+  return normalizeScaleSettings({ mode: "week", week });
+}
+
 function renderScale(category) {
   const items = sectionReviews("escala", { visibleOnly: true }).map(displayReview);
-  const scaleSettings = currentScaleSettings();
+  const scaleSettings = autoCurrentWeekSettings();
   els.postList.innerHTML = `
     <section class="category-page scale-page">
       <h1>${t(category.id)}</h1>

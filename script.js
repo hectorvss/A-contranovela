@@ -2446,7 +2446,12 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
     </section>
   `;
   screen.querySelector("[data-manager-back]").addEventListener("click", () => renderManager("category", { category: value.section }));
-  screen.querySelector("[data-save]").addEventListener("click", () => saveEditedReview());
+  screen.querySelector("[data-save]").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    if (btn.disabled) return;
+    btn.disabled = true;
+    try { await saveEditedReview(); } finally { btn.disabled = false; }
+  });
   screen.querySelector("[data-delete]").addEventListener("click", () => {
     renderManager("delete", {
       reviewId: item.id,

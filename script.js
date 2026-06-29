@@ -373,10 +373,34 @@ let supabaseClient = null;
 let supabaseStatus = "local";
 let managerNotice = "";
 let _homeSearchCleanup = null;
+let _navigatingFromHash = false;
 
-renderHome();
+function setHash(hash) {
+  if (_navigatingFromHash) return;
+  history.pushState(null, "", hash ? `#${hash}` : location.pathname + location.search);
+}
+
+function navigateFromHash() {
+  _navigatingFromHash = true;
+  const hash = decodeURIComponent(location.hash.slice(1));
+  if (!hash) renderHome();
+  else if (hash === "yo") renderBio();
+  else {
+    const cat = categories.find((c) => c.id === hash);
+    if (cat) renderCategory(cat.id);
+    else {
+      const rev = reviews.find((r) => r.id === hash);
+      if (rev) renderDetail(rev.id);
+      else renderHome();
+    }
+  }
+  _navigatingFromHash = false;
+}
+
+navigateFromHash();
 initCustomCursor();
 initSupabaseData();
+window.addEventListener("popstate", navigateFromHash);
 
 els.homeButton.addEventListener("click", renderBio);
 els.noButton.addEventListener("click", () => renderCategory("no"));
@@ -902,6 +926,7 @@ function toggleLanguage() {
 }
 
 function renderHome() {
+  setHash("");
   state = { view: "home", category: null, detail: null };
   document.body.classList.add("is-home");
   document.documentElement.lang = currentLanguage;
@@ -1067,6 +1092,7 @@ function closeManagerGate() {
 }
 
 function renderBio() {
+  setHash("yo");
   state = { view: "bio", category: null, detail: null };
   showPanel(t("yo"));
   const bio = currentBio();
@@ -1090,6 +1116,7 @@ function renderBio() {
 
 function renderCategory(categoryId) {
   const category = categories.find((item) => item.id === categoryId);
+  setHash(categoryId);
   state = { view: "category", category: categoryId, detail: null };
   showPanel(t(category.id));
   if (category.mode === "scale") return renderScale(category);
@@ -1234,6 +1261,7 @@ function renderDetail(reviewId) {
   const rawItem = reviews.find((reviewItem) => reviewItem.id === reviewId);
   if (!rawItem) return renderHome();
   if (!reviewCanOpen(rawItem)) return renderCategory(rawItem.section);
+  setHash(reviewId);
   const item = displayReview(rawItem);
   state = { view: "detail", category: rawItem.section, detail: rawItem.id };
   const category = categories.find((categoryItem) => categoryItem.id === rawItem.section);

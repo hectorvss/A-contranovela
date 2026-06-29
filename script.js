@@ -374,6 +374,7 @@ let supabaseStatus = "local";
 let managerNotice = "";
 let _homeSearchCleanup = null;
 let _navigatingFromHash = false;
+let _pendingHashReview = null;
 
 function setHash(hash) {
   if (_navigatingFromHash) return;
@@ -382,6 +383,7 @@ function setHash(hash) {
 
 function navigateFromHash() {
   _navigatingFromHash = true;
+  _pendingHashReview = null;
   const hash = decodeURIComponent(location.hash.slice(1));
   if (!hash) renderHome();
   else if (hash === "yo") renderBio();
@@ -391,7 +393,7 @@ function navigateFromHash() {
     else {
       const rev = reviews.find((r) => r.id === hash);
       if (rev) renderDetail(rev.id);
-      else renderHome();
+      else { _pendingHashReview = hash; renderHome(); }
     }
   }
   _navigatingFromHash = false;
@@ -487,6 +489,10 @@ async function initSupabaseData() {
 }
 
 function rerenderCurrentView() {
+  if (_pendingHashReview) {
+    const rev = reviews.find((r) => r.id === _pendingHashReview);
+    if (rev) { _pendingHashReview = null; renderDetail(rev.id); return; }
+  }
   if (state.view === "home") renderHome();
   else if (state.view === "bio") renderBio();
   else if (state.view === "category") renderCategory(state.category);

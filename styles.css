@@ -742,6 +742,15 @@ body.is-home .footer-links {
   object-fit: contain;
 }
 
+.today-page .feature-body {
+  grid-template-columns: 132px 1fr;
+}
+
+.today-page .feature-body em {
+  font-size: clamp(17px, 1.85vw, 23px);
+  line-height: 1.12;
+}
+
 .book-cover.large {
   width: min(320px, 42vw);
 }

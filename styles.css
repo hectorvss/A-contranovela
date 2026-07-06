@@ -725,6 +725,12 @@ body.is-home .footer-links {
   width: min(280px, 36vw);
 }
 
+.today-page .book-cover {
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  width: clamp(156px, 18.8vw, 208px);
+}
+
 .book-cover.large {
   width: min(320px, 42vw);
 }
@@ -2432,6 +2438,10 @@ body.is-sorting-blocks {
   .book-cover.feature,
   .book-cover.large {
     width: min(280px, 70vw);
+  }
+
+  .today-page .book-cover {
+    width: min(100%, 196px);
   }
 
   .today-feature h1 {

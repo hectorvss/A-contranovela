@@ -728,7 +728,7 @@ body.is-home .footer-links {
 .today-page .book-cover {
   aspect-ratio: auto;
   border: 1px solid var(--line);
-  width: clamp(116px, 14vw, 156px);
+  width: 132px;
 }
 
 .today-page .book-cover img {
@@ -2452,7 +2452,7 @@ body.is-sorting-blocks {
   }
 
   .today-page .book-cover {
-    width: min(100%, 152px);
+    width: 92px;
   }
 
   .today-feature h1 {
@@ -2488,6 +2488,10 @@ body.is-sorting-blocks {
 
   .card-row .book-cover {
     min-height: 114px;
+    width: 82px;
+  }
+
+  .today-page .book-cover {
     width: 82px;
   }
 

@@ -57,7 +57,7 @@ const categoryLabels = {
     index: "índice",
     next: "siguiente →",
     languageButton: "EN",
-    socialThere: "allí",
+    socialThere: "HdL",
   },
   en: {
     textos: "TEXTS",
@@ -74,7 +74,7 @@ const categoryLabels = {
     index: "index",
     next: "next →",
     languageButton: "ES",
-    socialThere: "there",
+    socialThere: "HdL",
   },
 };
 

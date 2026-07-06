@@ -728,15 +728,17 @@ body.is-home .footer-links {
 .today-page .book-cover {
   aspect-ratio: auto;
   border: 1px solid var(--line);
-  width: clamp(156px, 18.8vw, 208px);
+  width: clamp(116px, 14vw, 156px);
 }
 
 .today-page .book-cover img {
   height: auto;
+  mix-blend-mode: multiply;
   object-fit: contain;
 }
 
 .is-hoy-manana .book-cover img {
+  mix-blend-mode: multiply;
   object-fit: contain;
 }
 
@@ -2450,7 +2452,7 @@ body.is-sorting-blocks {
   }
 
   .today-page .book-cover {
-    width: min(100%, 196px);
+    width: min(100%, 152px);
   }
 
   .today-feature h1 {

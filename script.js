@@ -1275,7 +1275,7 @@ function renderDetail(reviewId) {
   els.postList.classList.add("hidden");
   els.postView.classList.remove("hidden");
   els.postView.innerHTML = `
-    <section class="detail-page">
+    <section class="detail-page${rawItem.section === "hoy-manana" ? " is-hoy-manana" : ""}">
       <header class="detail-hero">
         ${renderCover(item, "large")}
         <div class="detail-title">

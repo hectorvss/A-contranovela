@@ -2350,8 +2350,6 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
   managerState = { screen: "editor", category: categoryId, reviewId: item.id || null };
   pendingCoverFile = null;
   const editorBlocks = buildEditorBlocks(item);
-  const enTrans = item.translations?.en || {};
-  const enEditorBlocks = buildEditorBlocks({ body: Array.isArray(enTrans.body) && enTrans.body.length ? enTrans.body : [], images: [] });
   const value = {
     section: categoryId,
     author: item.author || "",
@@ -2371,8 +2369,6 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
     linkText: item.linkText || "añadir enlace",
     linkUrl: item.linkUrl || "",
     linkVisible: item.linkVisible === true,
-    enTitle: enTrans.title || "",
-    enSummary: enTrans.summary || "",
   };
   const screen = getManagerScreen();
   screen.innerHTML = `
@@ -2428,17 +2424,6 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
                 </div>
               </section>
             ` : ""}
-          </section>
-          <section class="manager-lang-section manager-lang-en">
-            <h3 class="manager-lang-heading">VERSIÓN EN INGLÉS <small>(opcional — se muestra al cambiar idioma)</small></h3>
-            <input class="compose-title" name="en-title" value="${escapeAttr(value.enTitle)}" placeholder="Title in English" />
-            <textarea class="compose-summary" name="en-summary" rows="3" placeholder="Summary in English">${value.enSummary}</textarea>
-            <div class="compose-toolbar">
-              <button type="button" data-add-en-block>+ BLOQUE TEXTO</button>
-            </div>
-            <div class="block-stack article-block-stack" data-en-blocks>
-              ${enEditorBlocks.map((block) => renderEditorBlock(block)).join("")}
-            </div>
           </section>
         </div>
         <aside class="compose-side">
@@ -2501,10 +2486,6 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
     renderManager("preview", { reviewId: id, category: value.section });
   });
   bindManagerBlockControls(screen);
-  screen.querySelector("[data-add-en-block]")?.addEventListener("click", () => {
-    screen.querySelector("[data-en-blocks]").insertAdjacentHTML("beforeend", renderTextBlock());
-    bindManagerBlockControls(screen);
-  });
   updateManagerNavState("editor");
 }
 
@@ -2736,24 +2717,7 @@ async function saveEditedReview(_editor, rerender = true) {
       next.body.push(`[[image:${imageIndex}]]`);
     }
   });
-  const enTitle = els.managerForm.querySelector('[name="en-title"]')?.value.trim() || "";
-  const enSummary = els.managerForm.querySelector('[name="en-summary"]')?.value.trim() || "";
-  const enBody = [];
-  els.managerForm.querySelector("[data-en-blocks]")?.querySelectorAll("[data-block-type]").forEach((block) => {
-    if (block.dataset.blockType === "text") {
-      const text = block.querySelector("[name='bodyBlock']")?.value.trim();
-      const align = normalizeTextAlign(block.querySelector("[name='bodyAlign']")?.value);
-      if (text) enBody.push(buildTextBlockEntry(text, align));
-    }
-  });
-  next.translations = {};
-  if (enTitle || enSummary || enBody.length) {
-    next.translations.en = {
-      ...(enTitle ? { title: enTitle } : {}),
-      ...(enSummary ? { summary: enSummary } : {}),
-      ...(enBody.length ? { body: enBody } : {}),
-    };
-  }
+  next.translations = previous?.translations || {};
   if (pendingCoverFile && getSupabaseClient()) {
     try {
       next.image = await uploadCoverToSupabase(pendingCoverFile, next.id);

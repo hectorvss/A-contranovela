@@ -2057,13 +2057,6 @@ body.is-sorting-blocks {
   text-transform: none;
 }
 
-.manager-lang-en {
-  background: #f8f8f5;
-  border: 1px solid var(--line);
-  border-top: 2px solid var(--ink);
-  padding: 24px;
-}
-
 .bio-editor-grid {
   display: grid;
   gap: 18px;

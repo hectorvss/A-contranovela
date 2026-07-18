@@ -877,6 +877,32 @@ body.is-home .footer-links {
   margin-top: auto;
 }
 
+.category-header {
+  align-items: baseline;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+}
+
+.share-button {
+  background: transparent;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 8px 16px;
+  text-transform: uppercase;
+}
+
+.detail-title .share-button {
+  align-self: flex-start;
+  margin-top: 18px;
+}
+
 .book-meta {
   border-bottom: 1px solid var(--line);
   border-top: 1px solid var(--line);

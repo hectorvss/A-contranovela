@@ -391,7 +391,7 @@ function navigateFromHash() {
     const cat = categories.find((c) => c.id === hash);
     if (cat) renderCategory(cat.id);
     else {
-      const rev = reviews.find((r) => r.id === hash);
+      const rev = reviews.find((r) => r.slug === hash) || reviews.find((r) => r.id === hash);
       if (rev) renderDetail(rev.id);
       else { _pendingHashReview = hash; renderHome(); }
     }
@@ -408,6 +408,32 @@ els.homeButton.addEventListener("click", renderBio);
 els.noButton.addEventListener("click", () => renderCategory("no"));
 els.backButton.addEventListener("click", goBack);
 els.footerManager.addEventListener("click", requestManagerAccess);
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-share]");
+  if (!button) return;
+  const url = `${location.origin}${location.pathname}#${button.dataset.share}`;
+  const title = button.dataset.shareTitle || document.title;
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, url });
+    } catch (error) {
+      if (error?.name !== "AbortError") console.error(error);
+    }
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    const original = button.textContent;
+    button.textContent = "¡copiado!";
+    button.disabled = true;
+    setTimeout(() => {
+      button.textContent = original;
+      button.disabled = false;
+    }, 1500);
+  } catch (error) {
+    console.error(error);
+  }
+});
 window.addEventListener("keydown", (event) => {
   if (event.target?.closest?.("input, textarea, select")) return;
   if (event.key.length !== 1) return;
@@ -547,6 +573,7 @@ function fromSupabaseReview(row) {
     body: Array.isArray(row.body) ? row.body.filter((entry) => !String(entry).trim().startsWith("[[link:")) : [],
     images: Array.isArray(row.images) ? row.images : [],
     translations: row.translations && typeof row.translations === "object" ? row.translations : {},
+    slug: row.slug || "",
   });
 }
 
@@ -580,6 +607,7 @@ function toSupabaseReview(review, sortOrder) {
     sort_order: sortOrder,
     is_published: review.isPublished !== false,
     translations: review.translations && typeof review.translations === "object" ? review.translations : {},
+    slug: review.slug || null,
   };
 }
 
@@ -1147,7 +1175,10 @@ function renderCards(category) {
   const items = rawItems.map(displayReview);
   els.postList.innerHTML = `
     <section class="category-page cards-page">
-      <h1>${t(category.id)}</h1>
+      <div class="category-header">
+        <h1>${t(category.id)}</h1>
+        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}">compartir</button>
+      </div>
       <div class="card-list">
         ${items.map((item) => renderCardRow(item, item.id === newestId, newestDate)).join("")}
       </div>
@@ -1187,7 +1218,10 @@ function renderScale(category) {
   const scaleSettings = autoCurrentWeekSettings();
   els.postList.innerHTML = `
     <section class="category-page scale-page">
-      <h1>${t(category.id)}</h1>
+      <div class="category-header">
+        <h1>${t(category.id)}</h1>
+        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}">compartir</button>
+      </div>
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index, { interactive: reviewCanOpen(item) })).join("")}
       </div>
@@ -1202,7 +1236,10 @@ function renderRanked(category, className) {
   const noSettings = autoCurrentWeekSettings();
   els.postList.innerHTML = `
     <section class="category-page scale-page ${className}">
-      <h1>${t(category.id)}</h1>
+      <div class="category-header">
+        <h1>${t(category.id)}</h1>
+        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}">compartir</button>
+      </div>
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index, { interactive: reviewCanOpen(item) })).join("")}
       </div>
@@ -1267,7 +1304,7 @@ function renderDetail(reviewId) {
   const rawItem = reviews.find((reviewItem) => reviewItem.id === reviewId);
   if (!rawItem) return renderHome();
   if (!reviewCanOpen(rawItem)) return renderCategory(rawItem.section);
-  setHash(reviewId);
+  setHash(rawItem.slug || rawItem.id);
   const item = displayReview(rawItem);
   state = { view: "detail", category: rawItem.section, detail: rawItem.id };
   const category = categories.find((categoryItem) => categoryItem.id === rawItem.section);
@@ -1283,6 +1320,7 @@ function renderDetail(reviewId) {
           <h2>${item.author}</h2>
           <span class="title-line"></span>
           <strong class="detail-score">${item.score}</strong>
+          <button type="button" class="share-button" data-share="${escapeAttr(rawItem.slug || rawItem.id)}" data-share-title="${escapeAttr(`${item.title} — ${item.author}`)}">compartir</button>
         </div>
       </header>
       <dl class="book-meta">
@@ -2369,6 +2407,7 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
     linkText: item.linkText || "añadir enlace",
     linkUrl: item.linkUrl || "",
     linkVisible: item.linkVisible === true,
+    slug: item.slug || "",
   };
   const screen = getManagerScreen();
   screen.innerHTML = `
@@ -2429,6 +2468,8 @@ function renderManagerEditor(reviewId = null, fallbackCategory = "textos") {
         <aside class="compose-side">
           <div class="cover-preview-large">${renderCover({ ...value, publisher: value.publisher || "editorial" }, "small")}</div>
           <label>sección<select name="section" data-section-select>${categories.map((category) => `<option value="${category.id}" ${category.id === value.section ? "selected" : ""}>${t(category.id)}</option>`).join("")}</select><small class="field-note">Puedes mover esta reseña a cualquier categoría antes de guardar.</small></label>
+          <label>enlace personalizado<input name="slug" value="${escapeAttr(value.slug)}" placeholder="autor-titulo" /></label>
+          <small class="field-note">Así queda la URL: acontranovela.com/#tu-enlace. Vacío = se genera solo con autor y título.</small>
           <div class="two-cols">
             <label>nota<input name="score" value="${value.score}" /></label>
             <label>año<input name="year" value="${value.year}" /></label>
@@ -2693,6 +2734,21 @@ async function saveEditedReview(_editor, rerender = true) {
   const formData = new FormData(els.managerForm);
   const next = Object.fromEntries(formData.entries());
   next.id = next.id || `${next.section}-${slug(next.author)}-${slug(next.title)}-${Date.now()}`;
+  const slugField = els.managerForm.querySelector('[name="slug"]');
+  slugField?.setCustomValidity("");
+  let nextSlug = slug(String(next.slug || "").trim());
+  if (!nextSlug) nextSlug = `${slug(next.author)}-${slug(next.title)}`;
+  const reservedSlugs = [...categories.map((category) => category.id), "yo"];
+  const slugConflict = reservedSlugs.includes(nextSlug)
+    ? { title: "una sección del sitio" }
+    : reviews.find((item) => item.slug === nextSlug && item.id !== next.id);
+  if (slugConflict) {
+    slugField?.setCustomValidity(`Ese enlace ya está en uso por "${slugConflict.title}". Elige otro.`);
+    slugField?.reportValidity();
+    slugField?.focus();
+    return null;
+  }
+  next.slug = nextSlug;
   next.slot = next.section === "hoy-manana" ? next.slot || "hoy" : next.slot || "";
   next.isPublished = next.isPublished !== "false";
   next.linkVisible = next.linkVisible === "true";

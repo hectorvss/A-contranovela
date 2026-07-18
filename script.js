@@ -380,22 +380,28 @@ let _pendingHashReview = null;
 
 function setHash(hash) {
   if (_navigatingFromHash) return;
-  history.pushState(null, "", hash ? `#${hash}` : location.pathname + location.search);
+  history.pushState(null, "", hash ? `/${hash}` : "/");
+}
+
+function currentRouteToken() {
+  const pathToken = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ""));
+  if (pathToken) return pathToken;
+  return decodeURIComponent(location.hash.slice(1));
 }
 
 function navigateFromHash() {
   _navigatingFromHash = true;
   _pendingHashReview = null;
-  const hash = decodeURIComponent(location.hash.slice(1));
-  if (!hash) renderHome();
-  else if (hash === "yo") renderBio();
+  const token = currentRouteToken();
+  if (!token) renderHome();
+  else if (token === "yo") renderBio();
   else {
-    const cat = categories.find((c) => c.id === hash);
+    const cat = categories.find((c) => c.id === token);
     if (cat) renderCategory(cat.id);
     else {
-      const rev = reviews.find((r) => r.slug === hash) || reviews.find((r) => r.id === hash);
+      const rev = reviews.find((r) => r.slug === token) || reviews.find((r) => r.id === token);
       if (rev) renderDetail(rev.id);
-      else { _pendingHashReview = hash; renderHome(); }
+      else { _pendingHashReview = token; renderHome(); }
     }
   }
   _navigatingFromHash = false;
@@ -413,7 +419,7 @@ els.footerManager.addEventListener("click", requestManagerAccess);
 document.addEventListener("click", async (event) => {
   const button = event.target.closest("[data-share]");
   if (!button) return;
-  const url = `${location.origin}${location.pathname}#${button.dataset.share}`;
+  const url = `${location.origin}/${button.dataset.share}`;
   const title = button.dataset.shareTitle || document.title;
   if (navigator.share) {
     try {
@@ -518,7 +524,7 @@ async function initSupabaseData() {
 
 function rerenderCurrentView() {
   if (_pendingHashReview) {
-    const rev = reviews.find((r) => r.id === _pendingHashReview);
+    const rev = reviews.find((r) => r.slug === _pendingHashReview) || reviews.find((r) => r.id === _pendingHashReview);
     if (rev) { _pendingHashReview = null; renderDetail(rev.id); return; }
   }
   if (state.view === "home") renderHome();

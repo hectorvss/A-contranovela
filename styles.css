@@ -888,7 +888,7 @@ body.is-home .footer-links {
   align-items: center;
   background: transparent;
   border: 0;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted), var(--ink) 35%);
   cursor: pointer;
   display: inline-flex;
   flex-shrink: 0;
@@ -901,9 +901,18 @@ body.is-home .footer-links {
   width: 19px;
 }
 
-.detail-title .share-button {
-  align-self: flex-start;
-  margin-top: 8px;
+.detail-score-row {
+  align-items: baseline;
+  align-self: flex-end;
+  display: flex;
+  gap: 14px;
+  margin-top: auto;
+}
+
+.detail-score-row .detail-score,
+.detail-score-row .share-button {
+  align-self: auto;
+  margin-top: 0;
 }
 
 .book-meta {

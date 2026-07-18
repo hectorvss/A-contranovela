@@ -344,7 +344,7 @@ function slug(value) {
     .replace(/(^-|-$)/g, "");
 }
 
-const shareIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 2a7 7 0 1 0 10 10" /></svg>`;
+const shareIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 2a7 7 0 1 0 10 10" /></svg>`;
 
 const els = {
   index: document.querySelector(".index"),
@@ -1321,8 +1321,10 @@ function renderDetail(reviewId) {
           <h1>${item.title}</h1>
           <h2>${item.author}</h2>
           <span class="title-line"></span>
-          <strong class="detail-score">${item.score}</strong>
-          <button type="button" class="share-button" data-share="${escapeAttr(rawItem.slug || rawItem.id)}" data-share-title="${escapeAttr(`${item.title} — ${item.author}`)}" aria-label="Compartir">${shareIconSvg}</button>
+          <div class="detail-score-row">
+            <button type="button" class="share-button" data-share="${escapeAttr(rawItem.slug || rawItem.id)}" data-share-title="${escapeAttr(`${item.title} — ${item.author}`)}" aria-label="Compartir">${shareIconSvg}</button>
+            <strong class="detail-score">${item.score}</strong>
+          </div>
         </div>
       </header>
       <dl class="book-meta">

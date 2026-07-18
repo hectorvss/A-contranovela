@@ -344,6 +344,8 @@ function slug(value) {
     .replace(/(^-|-$)/g, "");
 }
 
+const shareIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="M12 2a7 7 0 1 0 10 10" /></svg>`;
+
 const els = {
   index: document.querySelector(".index"),
   menu: document.querySelector("#menu"),
@@ -423,11 +425,11 @@ document.addEventListener("click", async (event) => {
   }
   try {
     await navigator.clipboard.writeText(url);
-    const original = button.textContent;
+    const original = button.innerHTML;
     button.textContent = "✓";
     button.disabled = true;
     setTimeout(() => {
-      button.textContent = original;
+      button.innerHTML = original;
       button.disabled = false;
     }, 1500);
   } catch (error) {
@@ -1177,7 +1179,7 @@ function renderCards(category) {
     <section class="category-page cards-page">
       <div class="category-header">
         <h1>${t(category.id)}</h1>
-        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}" aria-label="Compartir">↗</button>
+        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}" aria-label="Compartir">${shareIconSvg}</button>
       </div>
       <div class="card-list">
         ${items.map((item) => renderCardRow(item, item.id === newestId, newestDate)).join("")}
@@ -1220,7 +1222,7 @@ function renderScale(category) {
     <section class="category-page scale-page">
       <div class="category-header">
         <h1>${t(category.id)}</h1>
-        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}" aria-label="Compartir">↗</button>
+        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}" aria-label="Compartir">${shareIconSvg}</button>
       </div>
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index, { interactive: reviewCanOpen(item) })).join("")}
@@ -1238,7 +1240,7 @@ function renderRanked(category, className) {
     <section class="category-page scale-page ${className}">
       <div class="category-header">
         <h1>${t(category.id)}</h1>
-        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}" aria-label="Compartir">↗</button>
+        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}" aria-label="Compartir">${shareIconSvg}</button>
       </div>
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index, { interactive: reviewCanOpen(item) })).join("")}
@@ -1320,7 +1322,7 @@ function renderDetail(reviewId) {
           <h2>${item.author}</h2>
           <span class="title-line"></span>
           <strong class="detail-score">${item.score}</strong>
-          <button type="button" class="share-button" data-share="${escapeAttr(rawItem.slug || rawItem.id)}" data-share-title="${escapeAttr(`${item.title} — ${item.author}`)}" aria-label="Compartir">↗</button>
+          <button type="button" class="share-button" data-share="${escapeAttr(rawItem.slug || rawItem.id)}" data-share-title="${escapeAttr(`${item.title} — ${item.author}`)}" aria-label="Compartir">${shareIconSvg}</button>
         </div>
       </header>
       <dl class="book-meta">

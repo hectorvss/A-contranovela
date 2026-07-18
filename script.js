@@ -424,7 +424,7 @@ document.addEventListener("click", async (event) => {
   try {
     await navigator.clipboard.writeText(url);
     const original = button.textContent;
-    button.textContent = "¡copiado!";
+    button.textContent = "✓";
     button.disabled = true;
     setTimeout(() => {
       button.textContent = original;
@@ -1177,7 +1177,7 @@ function renderCards(category) {
     <section class="category-page cards-page">
       <div class="category-header">
         <h1>${t(category.id)}</h1>
-        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}">compartir</button>
+        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}" aria-label="Compartir">↗</button>
       </div>
       <div class="card-list">
         ${items.map((item) => renderCardRow(item, item.id === newestId, newestDate)).join("")}
@@ -1220,7 +1220,7 @@ function renderScale(category) {
     <section class="category-page scale-page">
       <div class="category-header">
         <h1>${t(category.id)}</h1>
-        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}">compartir</button>
+        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}" aria-label="Compartir">↗</button>
       </div>
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index, { interactive: reviewCanOpen(item) })).join("")}
@@ -1238,7 +1238,7 @@ function renderRanked(category, className) {
     <section class="category-page scale-page ${className}">
       <div class="category-header">
         <h1>${t(category.id)}</h1>
-        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}">compartir</button>
+        <button type="button" class="share-button" data-share="${category.id}" data-share-title="${escapeAttr(t(category.id))}" aria-label="Compartir">↗</button>
       </div>
       <div class="scale-list">
         ${items.map((item, index) => renderRankRow(item, index, { interactive: reviewCanOpen(item) })).join("")}
@@ -1320,7 +1320,7 @@ function renderDetail(reviewId) {
           <h2>${item.author}</h2>
           <span class="title-line"></span>
           <strong class="detail-score">${item.score}</strong>
-          <button type="button" class="share-button" data-share="${escapeAttr(rawItem.slug || rawItem.id)}" data-share-title="${escapeAttr(`${item.title} — ${item.author}`)}">compartir</button>
+          <button type="button" class="share-button" data-share="${escapeAttr(rawItem.slug || rawItem.id)}" data-share-title="${escapeAttr(`${item.title} — ${item.author}`)}" aria-label="Compartir">↗</button>
         </div>
       </header>
       <dl class="book-meta">

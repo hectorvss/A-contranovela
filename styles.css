@@ -886,21 +886,18 @@ body.is-home .footer-links {
 
 .share-button {
   background: transparent;
-  border: 1px solid var(--ink);
-  border-radius: 999px;
+  border: 0;
+  color: var(--muted);
   cursor: pointer;
   flex-shrink: 0;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 8px 16px;
-  text-transform: uppercase;
+  font-size: 15px;
+  line-height: 1;
+  padding: 4px;
 }
 
 .detail-title .share-button {
   align-self: flex-start;
-  margin-top: 18px;
+  margin-top: 8px;
 }
 
 .book-meta {

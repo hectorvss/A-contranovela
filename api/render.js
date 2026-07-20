@@ -53,6 +53,8 @@ module.exports = async (req, res) => {
         html = html.replace(/<meta property="og:description" content=".*?" \/>/, `<meta property="og:description" content="${ogDescription}" />`);
         if (ogImage) {
           html = html.replace(/<meta property="og:image" content=".*?" \/>/, `<meta property="og:image" content="${ogImage}" />`);
+          html = html.replace(/\s*<meta property="og:image:width" content=".*?" \/>/, "");
+          html = html.replace(/\s*<meta property="og:image:height" content=".*?" \/>/, "");
         }
         html = html.replace(/<meta name="twitter:card" content=".*?" \/>/, `<meta name="twitter:card" content="summary_large_image" />`);
         html = html.replace("</head>", `    <meta property="og:url" content="${ogUrl}" />\n  </head>`);
